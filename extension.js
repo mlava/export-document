@@ -161,6 +161,7 @@ function addScripts(url) {
     document.head.appendChild(script);
 }
 
+// All code below this point is open source code originally written by @TFTHacker (https://twitter.com/TfTHacker), maintained by David Vargas (https://github.com/dvargas92495), and modified a little by me with their permission and blessing.
 async function flatten(uid, excludeTag, flattenH) {
     var md = await iterateThroughTree(uid, markdownGithub, flattenH, excludeTag);
     marked.setOptions({
