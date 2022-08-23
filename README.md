@@ -13,7 +13,6 @@ This extension uses open source code originally written by (@TFTHacker)[https://
 
 This extension relies on external libraries to function. The extension author provides no warranty to their safety.
 
-The following scripts are used (all under MIT license):
-- https://evidenceprime.github.io/html-docx-js/
-- https://github.com/eligrey/FileSaver.js/
+The following external scripts are used (all under MIT license):
+- https://www.npmjs.com/package/html-docx-js-a13
 - https://ekoopmans.github.io/html2pdf.js/
