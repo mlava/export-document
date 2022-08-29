@@ -1,5 +1,5 @@
-const html2pdf = require('../node_modules/html2pdf.js');
-const htmlDocx = require('../node_modules/html-docx-js-a13');
+import HTMLtoDOCX from 'html-to-docx';
+import html2pdf from 'html2pdf.js';
 
 const config = {
     tabTitle: "Export Documents",
@@ -92,7 +92,7 @@ async function exportDOCX({ extensionAPI }) {
         }
     }
 
-    var converted = htmlDocx.asBlob(page);
+    var converted = await HTMLtoDOCX(page);
     window.saveAs(converted, pageTitle + '.docx');
 };
 
