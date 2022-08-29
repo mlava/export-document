@@ -12,7 +12,12 @@ module.exports = {
     },
 	resolve: {
         fallback: {
-            "fs": false
+			"crypto": require.resolve("crypto-browserify"),
+			"url": require.resolve("url"),
+			"path": require.resolve("path-browserify"),
+			"util": require.resolve("util"),
+			"buffer": require.resolve("buffer"),
+			"stream": require.resolve("stream-browserify")
         },
     }
 };
