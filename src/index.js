@@ -1,4 +1,4 @@
-import HTMLtoDOCX from 'html-to-docx';
+import HTMLtoDOCX from 'html-to-docx/dist/html-to-docx.esm.js';
 import html2pdf from 'html2pdf.js';
 
 const config = {
