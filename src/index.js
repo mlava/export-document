@@ -155,6 +155,7 @@ async function exportPDF({ extensionAPI }) {
 // All code below this point is open source code originally written by @TFTHacker (https://twitter.com/TfTHacker), maintained by David Vargas (https://github.com/dvargas92495), and modified a little by me with their permission and blessing.
 async function flatten(uid, excludeTag, flattenH) {
     var md = await iterateThroughTree(uid, markdownGithub, flattenH, excludeTag);
+    let marked = await RoamLazy.Marked();
     marked.setOptions({
         gfm: true,
         xhtml: false,
