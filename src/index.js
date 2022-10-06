@@ -163,7 +163,7 @@ async function flatten(uid, excludeTag, flattenH) {
     });
 
     md = md.replaceAll('- [ ] [', '- [ ]&nbsp;&nbsp;['); //fixes odd isue of task and alis on same line
-    md = md.replaceAll('- [x] [', '- [x]&nbsp;['); //fixes odd isue of task and alis on same line
+    md = md.replaceAll('- [x] [', '- [x]&nbsp;['); //fixes odd issue of task and alis on same line
     md = md.replaceAll(/\{\{\youtube\: (.+?)\}\} /g, (str, lnk) => {
         lnk = lnk.replace('youtube.com/', 'youtube.com/embed/');
         lnk = lnk.replace('youtu.be/', 'youtube.com/embed/');
@@ -189,7 +189,7 @@ async function flatten(uid, excludeTag, flattenH) {
     };
 
     marked.use({ tokenizer });
-    md = marked(md);
+    md = marked.parse(md);
 
     return `<html>\n
           <head>
