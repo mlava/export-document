@@ -30,6 +30,9 @@ module.exports = {
 			"buffer": require.resolve("buffer/"),
 			"stream": require.resolve("stream-browserify")
         },
-    }
+    },
+    performance: {
+        hints: false,
+    },
 };
 
