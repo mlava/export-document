@@ -68,8 +68,22 @@ async function exportDOCX({ extensionAPI }) {
     startBlock = await window.roamAlphaAPI.ui.getFocusedBlock()?.["block-uid"];
     if (typeof startBlock == 'undefined') { // no focused block
         var pageBlock = await window.roamAlphaAPI.ui.mainWindow.getOpenPageOrBlockUid();
-        var pageBlockInfo = await getBlockInfoByUID(pageBlock, true);
-        startBlock = pageBlockInfo[0][0].children[0].uid;
+        if (pageBlock != null) {
+            var pageBlockInfo = await getBlockInfoByUID(pageBlock, true);
+            startBlock = pageBlockInfo[0][0].children[0].uid;
+        } else {
+            var uri = window.location.href;
+            const regex = /^https:\/\/roamresearch.com\/.+\/(app|offline)\/\w+$/; //today's DNP
+            if (regex.test(uri)) { // this is Daily Notes for today
+                var today = new Date();
+                var dd = String(today.getDate()).padStart(2, '0');
+                var mm = String(today.getMonth()+1).padStart(2, '0');
+                var yyyy = today.getFullYear();
+                pageBlock = ""+mm+"-"+dd+"-"+yyyy+"";
+                var pageBlockInfo = await getBlockInfoByUID(pageBlock, true);
+                startBlock = pageBlockInfo[0][0].children[0].uid;
+            }
+        }
     }
 
     var blockUIDList = ['' + startBlock + ''];
