@@ -1,5 +1,7 @@
 This extension allows you to export a page in your graph into either .docx or .pdf format.
 
+You can trigger an export by opening the Command Palette and selecting either 'Export as DOCX' or 'Export as PDF'. 
+
 There are three configuration settings allowing you to:
 
 - Exclude blocks with tag
