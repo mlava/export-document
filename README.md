@@ -31,3 +31,6 @@ This extension calls a server I host on Heroku that runs Pandoc and Latex to all
 TODO:
 - fix Linked References inclusion in converted file
 - allow CSS to be sent to maintain Roam Research and user-defined styles
+
+Notes:
+- this extension crawls your page and then sends that data to a Heroku server for conversion. If your page is very long and/or the Heroku server has gone to sleep, it might be that the converted file takes a little while to arrive. Some error handling is built in, but if you aren't sure if there has been a problem or if the conversion is still processing, please check your browser console for errors.
