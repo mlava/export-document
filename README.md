@@ -6,6 +6,15 @@ This extension allows you to export a page in your graph into many different for
 - Linked References inclusion is not yet working with this new version, and will be updated in future versions
 - you can use Roam Research Hotkeys to trigger your file conversion
 
+Supported file formats:
+- pdf
+- docx
+- epub
+- rtf
+- md
+- gfm
+- opendocument
+
 There are Roam Depot configuration settings allowing you to:
 
 - Exclude blocks with tag
