@@ -27,37 +27,37 @@ function onload({ extensionAPI }) {
     extensionAPI.settings.panel.create(config);
 
     extensionAPI.ui.commandPalette.addCommand({
-        label: "Export as DOCX",
+        label: "Export as DOCX (.docx)",
         callback: () => exportFile({ extensionAPI }, "docx")
     });
 
     extensionAPI.ui.commandPalette.addCommand({
-        label: "Export as ePub",
+        label: "Export as ePub (.epub)",
         callback: () => exportFile({ extensionAPI }, "epub")
     });
 
     extensionAPI.ui.commandPalette.addCommand({
-        label: "Export as Github Flavored Markdown",
+        label: "Export as Github Flavored Markdown (.gfm)",
         callback: () => exportFile({ extensionAPI }, "gfm")
     });
 
     extensionAPI.ui.commandPalette.addCommand({
-        label: "Export as Markdown",
+        label: "Export as Markdown (.md)",
         callback: () => exportFile({ extensionAPI }, "md")
     });
 
     extensionAPI.ui.commandPalette.addCommand({
-        label: "Export as Open Document Format",
+        label: "Export as Open Document Format (.opendocument)",
         callback: () => exportFile({ extensionAPI }, "opendocument")
     });
 
     extensionAPI.ui.commandPalette.addCommand({
-        label: "Export as PDF",
+        label: "Export as PDF (.pdf)",
         callback: () => exportFile({ extensionAPI }, "pdf")
     });
 
     extensionAPI.ui.commandPalette.addCommand({
-        label: "Export as Rich Text Format",
+        label: "Export as Rich Text Format (.rtf)",
         callback: () => exportFile({ extensionAPI }, "rtf")
     });
 }
@@ -115,7 +115,7 @@ async function exportFile({ extensionAPI }, format) {
     var pageUID = results[0][1].uid;
 
     var page = await flatten(pageUID, excludeTag, flattenH);
-
+    console.info(page);
     fetch('https://roam-pandoc.herokuapp.com/convert', {
         method: 'POST',
         headers: {
@@ -135,7 +135,7 @@ async function exportFile({ extensionAPI }, format) {
                 response.blob().then(blob => {
                     blob.text().then(text => {
                         if (text == "Too deeply nested") {
-                            alert("Pandoc / Latex can only convert to a certain number of nested levels, which this page exceeds.\n\nPlease consider using the Flatten page hierarchy option in Roam Depot Settings to produce your document.")
+                            alert("Latex can only convert to a certain number of nested levels for creation of pdf files, which this page exceeds.\n\nPlease consider using the Flatten page hierarchy option in Roam Depot Settings to produce your document.")
                         } else {
                             console.error('Error converting file:', response.statusText);
                         }
