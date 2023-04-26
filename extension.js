@@ -115,7 +115,7 @@ async function exportFile({ extensionAPI }, format) {
     var pageUID = results[0][1].uid;
 
     var page = await flatten(pageUID, excludeTag, flattenH);
-    console.info(page);
+    
     fetch('https://roam-pandoc.herokuapp.com/convert', {
         method: 'POST',
         headers: {
@@ -151,12 +151,6 @@ async function exportFile({ extensionAPI }, format) {
 // All code below this point is open source code originally written by @TFTHacker (https://twitter.com/TfTHacker), maintained by David Vargas (https://github.com/dvargas92495), and modified a little by me with their permission and blessing.
 async function flatten(uid, excludeTag, flattenH) {
     var md = await iterateThroughTree(uid, markdownGithub, flattenH, excludeTag);
-    let marked = await RoamLazy.Marked();
-    marked.setOptions({
-        gfm: true,
-        xhtml: false,
-        pedantic: false,
-    });
 
     md = md.replaceAll('- [ ] [', '- [ ]&nbsp;&nbsp;['); //fixes odd isue of task and alis on same line
     md = md.replaceAll('- [x] [', '- [x]&nbsp;['); //fixes odd issue of task and alis on same line
@@ -169,23 +163,6 @@ async function flatten(uid, excludeTag, flattenH) {
 
     //lATEX handling
     md = md.replace(/  \- (\$\$)/g, '\n\n$1'); //Latex is centered
-    const tokenizer = {
-        codespan(src) {
-            var match = src.match(/\$\$(.*?)\$\$/);
-            if (match) {
-                var str = match[0];
-                str = str.replaceAll('<br>', ' ');
-                str = str.replaceAll('<br/>', ' ');
-                str = `<div>${str}</div>`;
-                return { type: 'text', raw: match[0], text: str };
-            }
-            // return false to use original codespan tokenizer
-            return false;
-        }
-    };
-
-    marked.use({ tokenizer });
-    //md = marked.parse(md);
     return (md);
 }
 
