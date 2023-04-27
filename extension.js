@@ -135,8 +135,9 @@ async function exportFile({ extensionAPI }, format) {
                 response.blob().then(blob => {
                     blob.text().then(text => {
                         if (text == "Too deeply nested") {
-                            alert("Latex can only convert to a certain number of nested levels for creation of pdf files, which this page exceeds.\n\nPlease consider using the Flatten page hierarchy option in Roam Depot Settings to produce your document.")
+                            alert("Latex can only convert to a certain number of nested levels for creation of pdf files, which this page exceeds.\n\nPlease consider using the Flatten page hierarchy option in this extension's Roam Depot Settings to produce your document.")
                         } else {
+                            alert('Error converting file:', response.statusText);
                             console.error('Error converting file:', response.statusText);
                         }
                     });
@@ -152,7 +153,7 @@ async function exportFile({ extensionAPI }, format) {
 async function flatten(uid, excludeTag, flattenH) {
     var md = await iterateThroughTree(uid, markdownGithub, flattenH, excludeTag);
 
-    md = md.replaceAll('- [ ] [', '- [ ]&nbsp;&nbsp;['); //fixes odd isue of task and alis on same line
+    md = md.replaceAll('- [ ] [', '- [ ]&nbsp;&nbsp;['); //fixes odd issue of task and alis on same line
     md = md.replaceAll('- [x] [', '- [x]&nbsp;['); //fixes odd issue of task and alis on same line
     md = md.replaceAll(/\{\{\youtube\: (.+?)\}\} /g, (str, lnk) => {
         lnk = lnk.replace('youtube.com/', 'youtube.com/embed/');
