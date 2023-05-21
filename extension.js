@@ -12,6 +12,12 @@ const config = {
             name: "Flatten page hierarchy",
             description: "Remove indentation and justify all blocks to the left",
             action: { type: "switch" },
+        },
+        {
+            id: "export-hideAlert",
+            name: "Hide Security Alert",
+            description: "Turn on to hide the Security Alert popup",
+            action: { type: "switch" },
         },/*
         {
             id: "export-linkedrefs",
@@ -70,6 +76,7 @@ async function exportFile({ extensionAPI }, format) {
     var excludeTag
     var includeLinkedRefs = false;
     var flattenH = false;
+    var hideAlert = false;
     if (extensionAPI.settings.get("export-linkedrefs") == true) {
         includeLinkedRefs = true;
     }
@@ -78,6 +85,9 @@ async function exportFile({ extensionAPI }, format) {
     }
     if (extensionAPI.settings.get("export-flatten")) {
         flattenH = true;
+    }
+    if (extensionAPI.settings.get("export-hideAlert")) {
+        hideAlert = true;
     }
 
     var startBlock;
@@ -115,38 +125,48 @@ async function exportFile({ extensionAPI }, format) {
     var pageUID = results[0][1].uid;
 
     var page = await flatten(pageUID, excludeTag, flattenH);
-    
-    fetch('https://roam-pandoc.herokuapp.com/convert', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            markdown: page,
-            filetype: format
+
+    if (hideAlert == false) {
+        if (confirm("This extension sends data to an external server to process and create your file.\n\nPress OK to continue.\n\n(You can turn off this alert in Roam Depot Settings.)") == true) {
+            getFile(page, format)
+        }
+    } else {
+        getFile(page, format)
+    }
+
+    async function getFile(page, format) {
+        fetch('https://roam-pandoc.herokuapp.com/convert', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                markdown: page,
+                filetype: format
+            })
         })
-    })
-        .then(response => {
-            if (response.ok) {
-                response.blob().then(blob => {
-                    window.saveAs(blob, pageTitle + "." + format);
-                });
-            } else {
-                response.blob().then(blob => {
-                    blob.text().then(text => {
-                        if (text == "Too deeply nested") {
-                            alert("Latex can only convert to a certain number of nested levels for creation of pdf files, which this page exceeds.\n\nPlease consider using the Flatten page hierarchy option in this extension's Roam Depot Settings to produce your document.")
-                        } else {
-                            alert('Error converting file:', response.statusText);
-                            console.error('Error converting file:', response.statusText);
-                        }
+            .then(response => {
+                if (response.ok) {
+                    response.blob().then(blob => {
+                        window.saveAs(blob, pageTitle + "." + format);
                     });
-                });
-            }
-        })
-        .catch(error => {
-            console.info(error);
-        });
+                } else {
+                    response.blob().then(blob => {
+                        blob.text().then(text => {
+                            if (text == "Too deeply nested") {
+                                alert("Latex can only convert to a certain number of nested levels for creation of pdf files, which this page exceeds.\n\nPlease consider using the Flatten page hierarchy option in this extension's Roam Depot Settings to produce your document.")
+                            } else {
+                                alert('Error converting file:', response.statusText);
+                                console.error('Error converting file:', response.statusText);
+                            }
+                        });
+                    });
+                }
+            })
+            .catch(error => {
+                console.info(error);
+            });
+    }
 };
 
 // All code below this point is open source code originally written by @TFTHacker (https://twitter.com/TfTHacker), maintained by David Vargas (https://github.com/dvargas92495), and modified a little by me with their permission and blessing.
