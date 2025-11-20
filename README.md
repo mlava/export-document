@@ -1,15 +1,15 @@
 This extension allows you to export a page in your graph into many different formats.
 
 **New:**
-- solved nesting problem for conversion to pdf
-  - up to 15 levels of nesting in Roam now supported
+- solved nesting problem for conversion to PDF
+  - up to 15 levels of nesting in Roam are now supported for PDFs; previously, the limit was 6
 - visual indication of export process to reassure that 'something is happening'
 
 *Previously:*
-- Completely revised structure, removed external scripts and now using a Pandoc server hosted on Heroku to convert files
+- Completely revised structure, removed external scripts, and now using a Pandoc server hosted on Heroku to convert files
 - Many more conversion formats are now available (see below)
 - Linked References inclusion is not yet working with this new version, and will be updated in future versions
-- you can use Roam Research Hotkeys to trigger your file conversion
+- You can use Roam Research Hotkeys to trigger your file conversion
 
 Supported file formats:
 - pdf
@@ -35,7 +35,6 @@ This extension calls a server I host on Heroku that runs Pandoc and Latex to all
 
 TODO:
 - fix Linked References inclusion in converted file
-- allow CSS to be sent to maintain Roam Research and user-defined styles
 
 Notes:
-- this extension crawls your page and then sends that data to a Heroku server for conversion. If your page is very long and/or the Heroku server has gone to sleep, it might be that the converted file takes a little while to arrive. Some error handling is built in, but if you aren't sure if there has been a problem or if the conversion is still processing, please check your browser console for errors.
+- This extension crawls your page and then sends that data to a Heroku server for conversion. If your page is very long, the converted file might take a while to arrive. A visual indicator of the export process is now available. Some error handling and alerts will provide information, but if you aren't sure if there has been a problem or if the conversion is still processing, please check your browser console for errors.
