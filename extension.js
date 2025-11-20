@@ -134,6 +134,68 @@ async function exportFile({ extensionAPI }, format) {
         getFile(page, format)
     }
 
+    function showSpinner() {
+        const existing = document.getElementById('roam-export-spinner');
+        if (existing) return existing;
+        const el = document.createElement('div');
+        el.id = 'roam-export-spinner';
+        el.style.cssText = `
+    position: fixed; top:16px; right:16px; z-index:9999;
+    padding:10px 14px; background:#111; color:#fff; border-radius:6px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.25); font-size:13px;
+    display:flex; align-items:center; gap:8px;
+  `;
+        el.innerHTML = `<span class="dot" style="width:8px;height:8px;border-radius:50%;background:#0af;animation: pulse 1s infinite;"></span><span>Exporting…</span>`;
+        const style = document.createElement('style');
+        style.textContent = `@keyframes pulse {0%{opacity:0.2}50%{opacity:1}100%{opacity:0.2}}`;
+        el.appendChild(style);
+        document.body.appendChild(el);
+        return el;
+    }
+    function hideSpinner() {
+        const el = document.getElementById('roam-export-spinner');
+        if (el) el.remove();
+    }
+
+    async function getFile(page, format) {
+        const spinner = showSpinner();
+        try {
+            const res = await fetch('https://roam-pandoc.herokuapp.com/convert', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ markdown: page, filetype: format, format: 'gfm' })
+            });
+
+            if (res.ok) {
+                const blob = await res.blob();
+                window.saveAs(blob, `${pageTitle}.${format}`);
+            } else {
+                const text = await res.text();
+                if (res.status === 400) {
+                    if (text.includes('expected application/json')) {
+                        alert('Export failed: bad request (content type must be application/json). Please refresh and try again.');
+                    } else if (text.includes('unsupported input format')) {
+                        alert('Export failed: only GitHub Flavored Markdown exports are supported.');
+                    } else if (text.includes('unsupported type')) {
+                        alert('Export failed: that output format is not supported.');
+                    } else if (text.includes('Too deeply nested')) {
+                        alert('Export failed: page is too deeply nested for PDF. Try “Flatten page hierarchy” in settings.');
+                    } else {
+                        alert(`Export failed (400): ${text || 'Invalid request'}`);
+                    }
+                } else {
+                    alert(`Export failed (${res.status}). Please try again.`);
+                }
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Export failed: network or server error.');
+        } finally {
+            hideSpinner();
+        }
+    }
+
+    /*
     async function getFile(page, format) {
         fetch('https://roam-pandoc.herokuapp.com/convert', {
             method: 'POST',
@@ -166,7 +228,7 @@ async function exportFile({ extensionAPI }, format) {
             .catch(error => {
                 console.info(error);
             });
-    }
+    }*/
 };
 
 // All code below this point is open source code originally written by @TFTHacker (https://twitter.com/TfTHacker), maintained by David Vargas (https://github.com/dvargas92495), and modified a little by me with their permission and blessing.

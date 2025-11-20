@@ -1,6 +1,11 @@
 This extension allows you to export a page in your graph into many different formats.
 
-**NEW:**
+**New:**
+- solved nesting problem for conversion to pdf
+  - up to 15 levels of nesting in Roam now supported
+- visual indication of export process to reassure that 'something is happening'
+
+*Previously:*
 - Completely revised structure, removed external scripts and now using a Pandoc server hosted on Heroku to convert files
 - Many more conversion formats are now available (see below)
 - Linked References inclusion is not yet working with this new version, and will be updated in future versions
