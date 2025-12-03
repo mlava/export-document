@@ -18,13 +18,19 @@ const config = {
             name: "Hide Security Alert",
             description: "Turn on to hide the Security Alert popup",
             action: { type: "switch" },
-        },/*
+        },
         {
             id: "export-linkedrefs",
             name: "Include Linked References",
             description: "Turn on to include Linked References in export",
             action: { type: "switch" },
-        },*/
+        },
+        {
+            id: "export-linkedrefs-flatten",
+            name: "Flatten Linked References",
+            description: "Flatten hierarchy only for linked references",
+            action: { type: "switch" },
+        },
     ]
 };
 var output = '';
@@ -33,52 +39,131 @@ function onload({ extensionAPI }) {
     extensionAPI.settings.panel.create(config);
 
     extensionAPI.ui.commandPalette.addCommand({
-        label: "Export as DOCX (.docx)",
+        label: "Export Page as DOCX (.docx)",
         callback: () => exportFile({ extensionAPI }, "docx")
     });
 
     extensionAPI.ui.commandPalette.addCommand({
-        label: "Export as ePub (.epub)",
+        label: "Export Page as ePub (.epub)",
         callback: () => exportFile({ extensionAPI }, "epub")
     });
 
     extensionAPI.ui.commandPalette.addCommand({
-        label: "Export as Github Flavored Markdown (.gfm)",
+        label: "Export Page as Github Flavored Markdown (.gfm)",
         callback: () => exportFile({ extensionAPI }, "gfm")
     });
 
     extensionAPI.ui.commandPalette.addCommand({
-        label: "Export as Markdown (.md)",
+        label: "Export Page as Markdown (.md)",
         callback: () => exportFile({ extensionAPI }, "md")
     });
 
     extensionAPI.ui.commandPalette.addCommand({
-        label: "Export as Open Document Format (.opendocument)",
+        label: "Export Page as Open Document Format (.opendocument)",
         callback: () => exportFile({ extensionAPI }, "opendocument")
     });
 
     extensionAPI.ui.commandPalette.addCommand({
-        label: "Export as PDF (.pdf)",
+        label: "Export Page as PDF (.pdf)",
         callback: () => exportFile({ extensionAPI }, "pdf")
     });
 
     extensionAPI.ui.commandPalette.addCommand({
-        label: "Export as Rich Text Format (.rtf)",
+        label: "Export Page as Rich Text Format (.rtf)",
         callback: () => exportFile({ extensionAPI }, "rtf")
     });
+
+    if (roamAlphaAPI.ui.pageContextMenu?.addCommand) {
+        roamAlphaAPI.ui.pageContextMenu.addCommand(
+            {
+                label: "Export Page as DOCX (.docx)",
+                callback: (ctx) => {
+                    const pageUid = ctx?.["page-uid"];
+                    if (pageUid) exportFile({ extensionAPI }, "docx", pageUid);
+                },
+            }
+        );
+        roamAlphaAPI.ui.pageContextMenu.addCommand(
+            {
+                label: "Export Page as PDF (.pdf)",
+                callback: (ctx) => {
+                    const pageUid = ctx?.["page-uid"];
+                    if (pageUid) exportFile({ extensionAPI }, "pdf", pageUid);
+                },
+            }
+        );
+        roamAlphaAPI.ui.pageContextMenu.addCommand(
+            {
+                label: "Export Page as Markdown (.md)",
+                callback: (ctx) => {
+                    const pageUid = ctx?.["page-uid"];
+                    if (pageUid) exportFile({ extensionAPI }, "md", pageUid);
+                },
+            }
+        );
+        roamAlphaAPI.ui.pageContextMenu.addCommand(
+            {
+                label: "Export Page as Rich Text Format (.rtf)",
+                callback: (ctx) => {
+                    const pageUid = ctx?.["page-uid"];
+                    if (pageUid) exportFile({ extensionAPI }, "rtf", pageUid);
+                },
+            }
+        );
+        roamAlphaAPI.ui.pageContextMenu.addCommand(
+            {
+                label: "Export Page as Open Document Format (.opendocument)",
+                callback: (ctx) => {
+                    const pageUid = ctx?.["page-uid"];
+                    if (pageUid) exportFile({ extensionAPI }, "opendocument", pageUid);
+                },
+            }
+        );
+        roamAlphaAPI.ui.pageContextMenu.addCommand(
+            {
+                label: "Export Page as Github Flavored Markdown (.gfm)",
+                callback: (ctx) => {
+                    const pageUid = ctx?.["page-uid"];
+                    if (pageUid) exportFile({ extensionAPI }, "gfm", pageUid);
+                },
+            }
+        );
+        roamAlphaAPI.ui.pageContextMenu.addCommand(
+            {
+                label: "Export Page as ePub (.epub)",
+                callback: (ctx) => {
+                    const pageUid = ctx?.["page-uid"];
+                    if (pageUid) exportFile({ extensionAPI }, "epub", pageUid);
+                },
+            }
+        );
+    }
 }
 
 function onunload() {
+    if (roamAlphaAPI.ui.pageContextMenu?.removeCommand) {
+        roamAlphaAPI.ui.pageContextMenu.removeCommand({ label: 'Export Page as DOCX (.docx)' });
+        roamAlphaAPI.ui.pageContextMenu.removeCommand({ label: 'Export Page as PDF (.pdf)' });
+        roamAlphaAPI.ui.pageContextMenu.removeCommand({ label: 'Export Page as Markdown (.md)' });
+        roamAlphaAPI.ui.pageContextMenu.removeCommand({ label: 'Export Page as Rich Text Format (.rtf)' });
+        roamAlphaAPI.ui.pageContextMenu.removeCommand({ label: 'Export Page as Open Document Format (.opendocument)' });
+        roamAlphaAPI.ui.pageContextMenu.removeCommand({ label: 'Export Page as Github Flavored Markdown (.gfm)' });
+        roamAlphaAPI.ui.pageContextMenu.removeCommand({ label: 'Export Page as ePub (.epub)' });
+    }
 }
 
-async function exportFile({ extensionAPI }, format) {
+async function exportFile({ extensionAPI }, format, explicitPageUid) {
     output = '';
     var excludeTag
     var includeLinkedRefs = false;
     var flattenH = false;
+    var flattenLinkedRefs = false;
     var hideAlert = false;
     if (extensionAPI.settings.get("export-linkedrefs") == true) {
         includeLinkedRefs = true;
+    }
+    if (extensionAPI.settings.get("export-linkedrefs-flatten") == true) {
+        flattenLinkedRefs = true;
     }
     if (extensionAPI.settings.get("export-excludeTag")) {
         excludeTag = "#" + extensionAPI.settings.get("export-excludeTag") + "";
@@ -91,23 +176,33 @@ async function exportFile({ extensionAPI }, format) {
     }
 
     var startBlock;
-    startBlock = await window.roamAlphaAPI.ui.getFocusedBlock()?.["block-uid"];
-    if (typeof startBlock == 'undefined') { // no focused block
-        var pageBlock = await window.roamAlphaAPI.ui.mainWindow.getOpenPageOrBlockUid();
-        if (pageBlock != null) {
-            var pageBlockInfo = await getBlockInfoByUID(pageBlock, true);
-            startBlock = pageBlockInfo[0][0].children[0].uid;
-        } else {
-            var uri = window.location.href;
-            const regex = /^https:\/\/roamresearch.com\/.+\/(app|offline)\/\w+$/; //today's DNP
-            if (regex.test(uri)) { // this is Daily Notes for today
-                var today = new Date();
-                var dd = String(today.getDate()).padStart(2, '0');
-                var mm = String(today.getMonth() + 1).padStart(2, '0');
-                var yyyy = today.getFullYear();
-                pageBlock = "" + mm + "-" + dd + "-" + yyyy + "";
+    if (explicitPageUid) {
+        console.info("Exporting explicit page UID:", explicitPageUid);
+        const pageInfo = await getBlockInfoByUID(explicitPageUid, true);
+        const pageNode = pageInfo?.[0]?.[0];
+        if (!pageNode || !pageNode.children?.length) {
+            return alert("Page has no blocks to export.");
+        }
+        startBlock = pageNode.children[0].uid;
+    } else {
+        startBlock = await window.roamAlphaAPI.ui.getFocusedBlock()?.["block-uid"];
+        if (typeof startBlock == 'undefined') { // no focused block
+            var pageBlock = await window.roamAlphaAPI.ui.mainWindow.getOpenPageOrBlockUid();
+            if (pageBlock != null) {
                 var pageBlockInfo = await getBlockInfoByUID(pageBlock, true);
                 startBlock = pageBlockInfo[0][0].children[0].uid;
+            } else {
+                var uri = window.location.href;
+                const regex = /^https:\/\/roamresearch.com\/.+\/(app|offline)\/\w+$/; //today's DNP
+                if (regex.test(uri)) { // this is Daily Notes for today
+                    var today = new Date();
+                    var dd = String(today.getDate()).padStart(2, '0');
+                    var mm = String(today.getMonth() + 1).padStart(2, '0');
+                    var yyyy = today.getFullYear();
+                    pageBlock = "" + mm + "-" + dd + "-" + yyyy + "";
+                    var pageBlockInfo = await getBlockInfoByUID(pageBlock, true);
+                    startBlock = pageBlockInfo[0][0].children[0].uid;
+                }
             }
         }
     }
@@ -124,7 +219,16 @@ async function exportFile({ extensionAPI }, format) {
     var pageTitle = results[0][1].title;
     var pageUID = results[0][1].uid;
 
+    // render page content
     var page = await flatten(pageUID, excludeTag, flattenH);
+
+    // optionally append linked references grouped by page
+    if (includeLinkedRefs) {
+        const linkedRefs = await buildLinkedReferencesSection(pageUID, excludeTag, flattenLinkedRefs);
+        if (linkedRefs) {
+            page = `${page}\n\n## Linked References\n${linkedRefs}`;
+        }
+    }
 
     if (hideAlert == false) {
         if (confirm("This extension sends data to an external server to process and create your file.\n\nPress OK to continue.\n\n(You can turn off this alert in Roam Depot Settings.)") == true) {
@@ -232,8 +336,8 @@ async function exportFile({ extensionAPI }, format) {
 };
 
 // All code below this point is open source code originally written by @TFTHacker (https://twitter.com/TfTHacker), maintained by David Vargas (https://github.com/dvargas92495), and modified a little by me with their permission and blessing.
-async function flatten(uid, excludeTag, flattenH) {
-    var md = await iterateThroughTree(uid, markdownGithub, flattenH, excludeTag);
+async function flatten(uid, excludeTag, flattenH, baseLevel = 0) {
+    var md = await iterateThroughTree(uid, markdownGithub, flattenH, excludeTag, baseLevel);
 
     md = md.replaceAll('- [ ] [', '- [ ]&nbsp;&nbsp;['); //fixes odd issue of task and alis on same line
     md = md.replaceAll('- [x] [', '- [x]&nbsp;['); //fixes odd issue of task and alis on same line
@@ -249,9 +353,9 @@ async function flatten(uid, excludeTag, flattenH) {
     return (md);
 }
 
-async function iterateThroughTree(uid, formatterFunction, flatten, excludeTag) {
+async function iterateThroughTree(uid, formatterFunction, flatten, excludeTag, baseLevel = 0) {
     var results = await getBlockInfoByUID(uid, true)
-    await walkDocumentStructureAndFormat(results[0][0], 0, formatterFunction, null, flatten, excludeTag);
+    await walkDocumentStructureAndFormat(results[0][0], baseLevel, formatterFunction, null, flatten, excludeTag);
     return output;
 }
 
@@ -438,6 +542,62 @@ function roamMarkupScrubber(blockText, removeMarkdown = true) {
         blockText = blockText.replaceAll(/\_\_(.+?)\_\_/g, '\_$1\_');    // convert for use as italics _ _
     }
     return blockText;
+}
+
+async function buildLinkedReferencesSection(pageUID, excludeTag, flattenLinkedRefs) {
+    const linkedRefs = await window.roamAlphaAPI.q(
+        `[:find ?ref-uid ?ref-page-title
+          :in $ ?page-uid
+          :where
+            [?page :block/uid ?page-uid]
+            [?ref :block/refs ?page]
+            [?ref :block/uid ?ref-uid]
+            [?ref :block/page ?ref-page]
+            [?ref-page :node/title ?ref-page-title]
+            [(not= ?ref-page ?page)]]`,
+        pageUID
+    );
+
+    if (!linkedRefs || linkedRefs.length === 0) return '';
+
+    const refsByPage = linkedRefs.reduce((acc, [uid, title]) => {
+        if (!acc[title]) acc[title] = new Set();
+        acc[title].add(uid);
+        return acc;
+    }, {});
+
+    let md = '';
+    const orderedPages = Object.keys(refsByPage).sort((a, b) => a.localeCompare(b));
+    for (const title of orderedPages) {
+        md += `\n### ${title}\n`;
+        for (const uid of Array.from(refsByPage[title])) {
+            const refMarkdown = await formatTreeToMarkdown(uid, excludeTag, flattenLinkedRefs);
+            if (refMarkdown.trim().length === 0) continue;
+            md += `${refMarkdown}\n`;
+        }
+    }
+
+    return md.trim();
+}
+
+async function formatTreeToMarkdown(uid, excludeTag, flattenH) {
+    output = '';
+    const depth = await getBlockDepth(uid);
+    // add 1 so the immediate block renders as a first-level bullet and its children indent correctly
+    return await flatten(uid, excludeTag, flattenH, depth + 1);
+}
+
+async function getBlockDepth(uid) {
+    const result = await getBlockInfoByUID(uid, false, true);
+    if (!result || !result[0] || !result[0][0]) return 0;
+    let depth = 0;
+    let current = result[0][0];
+    // follow first parent chain until we reach the page (has title) or no parent
+    while (current.parents && current.parents[0] && !current.parents[0].title) {
+        depth += 1;
+        current = current.parents[0];
+    }
+    return depth;
 }
 
 export default {
