@@ -6,6 +6,7 @@ This extension allows you to export a page in your graph into many different for
 - Visual indicator during export so you know something is happening
 - Up to 15 levels of nesting supported for PDFs (previously limited to 6)
 - Include Linked References in the export, with optional flattening
+- Augmented Headings support — H4-H6 headings are automatically exported when the [Augmented Headings](https://github.com/mlava/augmented-headings) extension is in use
 - Extension Tools API for programmatic access from other extensions
 
 ## Supported file formats

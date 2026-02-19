@@ -438,6 +438,25 @@ async function walkDocumentStructureAndFormat(nodeCurrent, level, outputFunction
     }
 }
 
+function getAugmentedHeadingLevel(nodeCurrent) {
+    try {
+        let props = nodeCurrent.props;
+        if (!props) return null;
+        if (typeof props.toJS === "function") props = props.toJS();
+        else if (typeof props.entries === "function") {
+            try { props = Object.fromEntries(props.entries()); } catch { return null; }
+        }
+        if (typeof props !== "object") return null;
+        for (const k of Object.keys(props)) {
+            if (k.replace(/^:+/, "") === "ah-level") {
+                const v = String(props[k] ?? "").trim().toLowerCase();
+                if (v === "h4" || v === "h5" || v === "h6") return v;
+            }
+        }
+    } catch { }
+    return null;
+}
+
 async function markdownGithub(blockText, nodeCurrent, level, parent, flatten, excludeTag, acc) {
     if (flatten == true) {
         level = 0
@@ -453,6 +472,12 @@ async function markdownGithub(blockText, nodeCurrent, level, parent, flatten, ex
     if (nodeCurrent.heading == 1) blockText = '# ' + blockText;
     if (nodeCurrent.heading == 2) blockText = '## ' + blockText;
     if (nodeCurrent.heading == 3) blockText = '### ' + blockText;
+    if (!nodeCurrent.heading) {
+        const ahLevel = getAugmentedHeadingLevel(nodeCurrent);
+        if (ahLevel === "h4") blockText = '#### ' + blockText;
+        else if (ahLevel === "h5") blockText = '##### ' + blockText;
+        else if (ahLevel === "h6") blockText = '###### ' + blockText;
+    }
     // process todo's
     var todoPrefix = level > 0 ? '' : '- '; //todos on first level need a dash before them
     if (blockText.substring(0, 12) == '{{[[TODO]]}}') {
