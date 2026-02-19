@@ -33,7 +33,7 @@ const config = {
         },
     ]
 };
-var output = '';
+const FILENAME_FALLBACK = 'roam-export';
 
 function onload({ extensionAPI }) {
     extensionAPI.settings.panel.create(config);
@@ -138,9 +138,44 @@ function onload({ extensionAPI }) {
             }
         );
     }
+
+    window.RoamExtensionTools = window.RoamExtensionTools || {};
+    window.RoamExtensionTools["export-document"] = {
+        name: "Export Document",
+        version: "1.0",
+        tools: [
+            {
+                name: "ed_export",
+                description: "Export a Roam page to a document file. The file is downloaded to the user's browser. Settings (flatten, exclude tag, linked refs) are read from the extension's Roam Depot settings.",
+                parameters: {
+                    type: "object",
+                    properties: {
+                        page_uid: {
+                            type: "string",
+                            description: "UID of the Roam page to export."
+                        },
+                        format: {
+                            type: "string",
+                            enum: ["docx", "epub", "gfm", "md", "opendocument", "pdf", "rtf"],
+                            description: "Output file format."
+                        }
+                    },
+                    required: ["page_uid", "format"]
+                },
+                execute: async ({ page_uid, format } = {}) => {
+                    if (!page_uid) return { error: "page_uid is required." };
+                    if (!format) return { error: "format is required." };
+                    const validFormats = ["docx", "epub", "gfm", "md", "opendocument", "pdf", "rtf"];
+                    if (!validFormats.includes(format)) return { error: `Invalid format. Must be one of: ${validFormats.join(", ")}` };
+                    return await exportFile({ extensionAPI }, format, page_uid, { silent: true });
+                }
+            }
+        ]
+    };
 }
 
 function onunload() {
+    delete window.RoamExtensionTools?.["export-document"];
     if (roamAlphaAPI.ui.pageContextMenu?.removeCommand) {
         roamAlphaAPI.ui.pageContextMenu.removeCommand({ label: 'Export Page as DOCX (.docx)' });
         roamAlphaAPI.ui.pageContextMenu.removeCommand({ label: 'Export Page as PDF (.pdf)' });
@@ -152,8 +187,7 @@ function onunload() {
     }
 }
 
-async function exportFile({ extensionAPI }, format, explicitPageUid) {
-    output = '';
+async function exportFile({ extensionAPI }, format, explicitPageUid, { silent = false } = {}) {
     var excludeTag
     var includeLinkedRefs = false;
     var flattenH = false;
@@ -181,6 +215,7 @@ async function exportFile({ extensionAPI }, format, explicitPageUid) {
         const pageInfo = await getBlockInfoByUID(explicitPageUid, true);
         const pageNode = pageInfo?.[0]?.[0];
         if (!pageNode || !pageNode.children?.length) {
+            if (silent) return { error: "Page has no blocks to export." };
             return alert("Page has no blocks to export.");
         }
         startBlock = pageNode.children[0].uid;
@@ -230,12 +265,14 @@ async function exportFile({ extensionAPI }, format, explicitPageUid) {
         }
     }
 
-    if (hideAlert == false) {
+    if (silent) {
+        return await getFile(page, format, true);
+    } else if (hideAlert == false) {
         if (confirm("This extension sends data to an external server to process and create your file.\n\nPress OK to continue.\n\n(You can turn off this alert in Roam Depot Settings.)") == true) {
-            getFile(page, format)
+            getFile(page, format, false)
         }
     } else {
-        getFile(page, format)
+        getFile(page, format, false)
     }
 
     function showSpinner() {
@@ -261,8 +298,10 @@ async function exportFile({ extensionAPI }, format, explicitPageUid) {
         if (el) el.remove();
     }
 
-    async function getFile(page, format) {
-        const spinner = showSpinner();
+    async function getFile(page, format, silent) {
+        const spinner = silent ? null : showSpinner();
+        const filename = buildFilename(pageTitle, format);
+        const saveAsFn = (window.FileSaver && window.FileSaver.saveAs) ? window.FileSaver.saveAs : window.saveAs;
         try {
             const res = await fetch('https://roam-pandoc.herokuapp.com/convert', {
                 method: 'POST',
@@ -272,72 +311,48 @@ async function exportFile({ extensionAPI }, format, explicitPageUid) {
 
             if (res.ok) {
                 const blob = await res.blob();
-                window.saveAs(blob, `${pageTitle}.${format}`);
+                saveAsFn(blob, filename);
+                if (silent) return { success: true, filename };
             } else {
                 const text = await res.text();
+                let errorMsg;
                 if (res.status === 400) {
                     if (text.includes('expected application/json')) {
-                        alert('Export failed: bad request (content type must be application/json). Please refresh and try again.');
+                        errorMsg = 'Export failed: bad request (content type must be application/json). Please refresh and try again.';
                     } else if (text.includes('unsupported input format')) {
-                        alert('Export failed: only GitHub Flavored Markdown exports are supported.');
+                        errorMsg = 'Export failed: only GitHub Flavored Markdown exports are supported.';
                     } else if (text.includes('unsupported type')) {
-                        alert('Export failed: that output format is not supported.');
+                        errorMsg = 'Export failed: that output format is not supported.';
                     } else if (text.includes('Too deeply nested')) {
-                        alert('Export failed: page is too deeply nested for PDF. Try “Flatten page hierarchy” in settings.');
+                        errorMsg = 'Export failed: page is too deeply nested for PDF. Try "Flatten page hierarchy" in settings.';
                     } else {
-                        alert(`Export failed (400): ${text || 'Invalid request'}`);
+                        errorMsg = `Export failed (400): ${text || 'Invalid request'}`;
                     }
                 } else {
-                    alert(`Export failed (${res.status}). Please try again.`);
+                    errorMsg = `Export failed (${res.status}). Please try again.`;
                 }
+                if (silent) return { error: errorMsg };
+                alert(errorMsg);
             }
         } catch (e) {
             console.error(e);
+            if (silent) return { error: 'Export failed: network or server error.' };
             alert('Export failed: network or server error.');
         } finally {
-            hideSpinner();
+            if (spinner) hideSpinner();
         }
     }
-
-    /*
-    async function getFile(page, format) {
-        fetch('https://roam-pandoc.herokuapp.com/convert', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                markdown: page,
-                filetype: format
-            })
-        })
-            .then(response => {
-                if (response.ok) {
-                    response.blob().then(blob => {
-                        window.saveAs(blob, pageTitle + "." + format);
-                    });
-                } else {
-                    response.blob().then(blob => {
-                        blob.text().then(text => {
-                            if (text == "Too deeply nested") {
-                                alert("Latex can only convert to a certain number of nested levels for creation of pdf files, which this page exceeds.\n\nPlease consider using the Flatten page hierarchy option in this extension's Roam Depot Settings to produce your document.")
-                            } else {
-                                alert('Error converting file:', response.statusText);
-                                console.error('Error converting file:', response.statusText);
-                            }
-                        });
-                    });
-                }
-            })
-            .catch(error => {
-                console.info(error);
-            });
-    }*/
 };
+
+function buildFilename(title, format) {
+    const safeTitle = (title || FILENAME_FALLBACK).replace(/[\\/:*?"<>|]/g, '-').trim() || FILENAME_FALLBACK;
+    return `${safeTitle}.${format}`;
+}
 
 // All code below this point is open source code originally written by @TFTHacker (https://twitter.com/TfTHacker), maintained by David Vargas (https://github.com/dvargas92495), and modified a little by me with their permission and blessing.
 async function flatten(uid, excludeTag, flattenH, baseLevel = 0) {
-    var md = await iterateThroughTree(uid, markdownGithub, flattenH, excludeTag, baseLevel);
+    var acc = { text: '' };
+    var md = await iterateThroughTree(uid, markdownGithub, flattenH, excludeTag, baseLevel, acc);
 
     md = md.replaceAll('- [ ] [', '- [ ]&nbsp;&nbsp;['); //fixes odd issue of task and alis on same line
     md = md.replaceAll('- [x] [', '- [x]&nbsp;['); //fixes odd issue of task and alis on same line
@@ -353,23 +368,24 @@ async function flatten(uid, excludeTag, flattenH, baseLevel = 0) {
     return (md);
 }
 
-async function iterateThroughTree(uid, formatterFunction, flatten, excludeTag, baseLevel = 0) {
+async function iterateThroughTree(uid, formatterFunction, flatten, excludeTag, baseLevel = 0, acc) {
     var results = await getBlockInfoByUID(uid, true)
-    await walkDocumentStructureAndFormat(results[0][0], baseLevel, formatterFunction, null, flatten, excludeTag);
-    return output;
+    await walkDocumentStructureAndFormat(results[0][0], baseLevel, formatterFunction, null, flatten, excludeTag, acc);
+    return acc.text;
 }
 
 async function getBlockInfoByUID(uid, withChildren = false, withParents = false) {
     try {
         let q = `[:find (pull ?page
-                     [:node/title :block/string :block/uid :block/heading :block/props 
+                     [:node/title :block/string :block/uid :block/heading :block/props
                       :entity/attrs :block/open :block/text-align :children/view-type
                       :block/order
                       ${withChildren ? '{:block/children ...}' : ''}
                       ${withParents ? '{:block/parents ...}' : ''}
                      ])
-                  :where [?page :block/uid "${uid}"]  ]`;
-        var results = await window.roamAlphaAPI.q(q);
+                  :in $ ?target-uid
+                  :where [?page :block/uid ?target-uid]  ]`;
+        var results = await window.roamAlphaAPI.q(q, uid);
         if (results.length == 0) return null;
         return results;
     } catch (e) {
@@ -377,9 +393,9 @@ async function getBlockInfoByUID(uid, withChildren = false, withParents = false)
     }
 }
 
-async function walkDocumentStructureAndFormat(nodeCurrent, level, outputFunction, parent, flatten, excludeTag) {
+async function walkDocumentStructureAndFormat(nodeCurrent, level, outputFunction, parent, flatten, excludeTag, acc) {
     if (typeof nodeCurrent.title != 'undefined') {          // Title of page
-        outputFunction(nodeCurrent.title, nodeCurrent, 0, parent, flatten);
+        outputFunction(nodeCurrent.title, nodeCurrent, 0, parent, flatten, excludeTag, acc);
     } else if (typeof nodeCurrent.string != 'undefined') { // Text of a block
         // check if there are embeds and convert text to that
         let blockText = nodeCurrent.string;
@@ -396,14 +412,14 @@ async function walkDocumentStructureAndFormat(nodeCurrent, level, outputFunction
                     blockText = await blockText.replace(e, embedResults[0][0].string);
                     //test if the newly generated block has any block refs
                     blockText = await resolveBlockRefsInText(blockText);
-                    outputFunction(blockText, nodeCurrent, level, parent, flatten, excludeTag);
+                    outputFunction(blockText, nodeCurrent, level, parent, flatten, excludeTag, acc);
                     //see if embed has children
                     if (typeof embedResults[0][0].children != 'undefined' && level < 30) {
                         let orderedNode = await sortObjectsByOrder(embedResults[0][0].children)
                         for (let i in await sortObjectsByOrder(embedResults[0][0].children)) {
-                            await walkDocumentStructureAndFormat(orderedNode[i], level + 1, (embedResults, nodeCurrent, level) => {
-                                outputFunction(embedResults, nodeCurrent, level, parent, flatten, excludeTag)
-                            }, embedResults[0][0], parent, flatten)
+                            await walkDocumentStructureAndFormat(orderedNode[i], level + 1, (blockText, node, lvl, _p, _f, _e, acc) => {
+                                outputFunction(blockText, node, lvl, parent, flatten, excludeTag, acc)
+                            }, embedResults[0][0], flatten, excludeTag, acc)
                         }
                     }
                 } catch (e) { }
@@ -411,25 +427,25 @@ async function walkDocumentStructureAndFormat(nodeCurrent, level, outputFunction
         } else {
             // Second: check for block refs
             blockText = await resolveBlockRefsInText(blockText);
-            outputFunction(blockText, nodeCurrent, level, parent, flatten, excludeTag);
+            outputFunction(blockText, nodeCurrent, level, parent, flatten, excludeTag, acc);
         }
     }
     // If block/node has children nodes, process them
     if (typeof nodeCurrent.children != 'undefined') {
         let orderedNode = await sortObjectsByOrder(nodeCurrent.children)
         for (let i in await sortObjectsByOrder(nodeCurrent.children))
-            await walkDocumentStructureAndFormat(orderedNode[i], level + 1, outputFunction, nodeCurrent, flatten, excludeTag)
+            await walkDocumentStructureAndFormat(orderedNode[i], level + 1, outputFunction, nodeCurrent, flatten, excludeTag, acc)
     }
 }
 
-async function markdownGithub(blockText, nodeCurrent, level, parent, flatten, excludeTag) {
+async function markdownGithub(blockText, nodeCurrent, level, parent, flatten, excludeTag, acc) {
     if (flatten == true) {
         level = 0
     } else {
         level = level - 1;
     }
 
-    if (nodeCurrent.title) { output += '# ' + blockText; return; };
+    if (nodeCurrent.title) { acc.text += '# ' + blockText; return; };
 
     //convert soft line breaks, but not with code blocks
     if (blockText.substring(0, 3) != '```') blockText = blockText.replaceAll('\n', '<br/>');
@@ -457,9 +473,9 @@ async function markdownGithub(blockText, nodeCurrent, level, parent, flatten, ex
     if (level > 0 && blockText.substring(0, 3) != '```') {
         //handle indenting (first level is treated as no level, second level treated as first level)
         if (parent["view-type"] == 'numbered') {
-            output += '    '.repeat(level - 1) + '1. ';
+            acc.text += '    '.repeat(level - 1) + '1. ';
         } else {
-            output += '  '.repeat(level) + '- ';
+            acc.text += '  '.repeat(level) + '- ';
         }
     } else { //level 1, add line break before
         blockText = '\n  ' + blockText;
@@ -473,10 +489,10 @@ async function markdownGithub(blockText, nodeCurrent, level, parent, flatten, ex
         excludeTag = escapeRegExp(excludeTag);
         var regex = new RegExp("(.*" + excludeTag + ".*)", "g");
         if (!blockText.match(regex)) {
-            output += blockText + '  \n';
+            acc.text += blockText + '  \n';
         }
     } else {
-        output += blockText + '  \n';
+        acc.text += blockText + '  \n';
     }
 }
 
@@ -511,6 +527,7 @@ function roamMarkupScrubber(blockText, removeMarkdown = true) {
     blockText = blockText.replaceAll('{{[[kanban]]}}', '');
     blockText = blockText.replaceAll('{{mermaid}}', '');
     blockText = blockText.replaceAll('{{word-count}}', '');
+    blockText = blockText.replaceAll(/\{\{(?:\[\[)?video(?:\]\])?:? ?.*?\}\}/g, '');
     blockText = blockText.replaceAll('{{date}}', '');
     blockText = blockText.replaceAll('{{diagram}}', '');
     blockText = blockText.replaceAll('{{POMO}}', '');
@@ -581,7 +598,6 @@ async function buildLinkedReferencesSection(pageUID, excludeTag, flattenLinkedRe
 }
 
 async function formatTreeToMarkdown(uid, excludeTag, flattenH) {
-    output = '';
     const depth = await getBlockDepth(uid);
     // add 1 so the immediate block renders as a first-level bullet and its children indent correctly
     return await flatten(uid, excludeTag, flattenH, depth + 1);

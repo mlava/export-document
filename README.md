@@ -1,20 +1,15 @@
 This extension allows you to export a page in your graph into many different formats.
 
-**New:**
-- fixed inclusion of linked references (finally)
-- option to flatten only linked references (if included)
-- right-click the page title to use the Page Context > Extensions menu to export page
-- solved nesting problem for conversion to PDF
-  - up to 15 levels of nesting in Roam are now supported for PDFs; previously, the limit was 6
-- visual indication of export process to reassure that 'something is happening'
+## Features
 
-*Previously:*
-- Completely revised structure, removed external scripts, and now using a Pandoc server hosted on Heroku to convert files
-- Many more conversion formats are now available (see below)
-- Linked References inclusion is not yet working with this new version, and will be updated in future versions
-- You can use Roam Research Hotkeys to trigger your file conversion
+- Export from the **Command Palette** (all formats) or **Page Context Menu** (right-click page title)
+- Visual indicator during export so you know something is happening
+- Up to 15 levels of nesting supported for PDFs (previously limited to 6)
+- Include Linked References in the export, with optional flattening
+- Extension Tools API for programmatic access from other extensions
 
-Supported file formats:
+## Supported file formats
+
 - pdf
 - docx
 - epub
@@ -23,23 +18,27 @@ Supported file formats:
 - gfm
 - opendocument
 
-There are Roam Depot configuration settings allowing you to:
+## Settings
 
-- Exclude blocks with tag
-  - define a tag that will mean any block containing this tag will not be included in the export (leave blank to exclude no blocks)
-- Flatten page hierarchy
-  - export all content justified to the left, with no indentation (leave off to keep indentation intact)
-- Include Linked References
-  - include the linked references section in the page export (leave off to exclude)
-  - option to flatten only the Linked References section
+Configure via Roam Depot Settings:
 
-This extension uses open source code originally written by (@TFTHacker)[https://twitter.com/TfTHacker] and maintained by (David Vargas)[https://github.com/dvargas92495] with their permission and blessing.
+- **Exclude blocks with tag** — any block containing this tag will be excluded from the export (leave blank to include all blocks)
+- **Flatten page hierarchy** — export all content justified to the left, with no indentation
+- **Hide Security Alert** — suppress the confirmation dialog before each export
+- **Include Linked References** — append the linked references section to the export
+- **Flatten Linked References** — flatten hierarchy only for the linked references section (independent of the main flatten setting)
 
-This extension calls a server I host on Heroku that runs Pandoc and Latex to allow conversion, and returns the converted file for you to download.
+## Extension Tools API
 
-TODO:
-- allow CSS to be sent to maintain Roam Research and user-defined styles
+Other extensions can trigger exports programmatically via `window.RoamExtensionTools["export-document"]`. The `ed_export` tool accepts `page_uid` (string) and `format` (one of the supported formats above). Settings are read from Roam Depot configuration.
 
-Notes:
-- This extension crawls your page and then sends that data to a Heroku server for conversion. If your page is very long, the converted file might take a while to arrive. A visual indicator of the export process is now available. Some error handling and alerts will provide information, but if you aren't sure if there has been a problem or if the conversion is still processing, please check your browser console for errors.
+## Credits
+
+This extension uses open source code originally written by [@TFTHacker](https://twitter.com/TfTHacker) and maintained by [David Vargas](https://github.com/dvargas92495) with their permission and blessing.
+
+This extension calls a server hosted on Heroku that runs Pandoc and LaTeX to convert files, and returns the converted file for you to download.
+
+## Notes
+
+This extension crawls your page and then sends that data to a Heroku server for conversion. If your page is very long, the converted file might take a while to arrive. A visual indicator of the export process is now available. Some error handling and alerts will provide information, but if you aren't sure if there has been a problem or if the conversion is still processing, please check your browser console for errors.
 
