@@ -147,6 +147,7 @@ function onload({ extensionAPI }) {
             {
                 name: "ed_export",
                 description: "Export a Roam page to a document file. The file is downloaded to the user's browser. Settings (flatten, exclude tag, linked refs) are read from the extension's Roam Depot settings.",
+                readOnly: true,
                 parameters: {
                     type: "object",
                     properties: {
