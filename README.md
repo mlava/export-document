@@ -4,10 +4,6 @@ Move text between Roam and real document formats in both directions.
   - Export any page to `pdf`, `docx`, `epub`, `rtf`, `md`, `gfm`, or `opendocument`. 
   - Import `docx`, `odt`, `rtf`, `epub`, `html`, or `md` files from disk and land them in your graph as nested blocks with their heading structure intact.<br><br>
 
-![Supported formats](docs/assets/svg/format-matrix.svg)
-<br>
-*What this shows: export covers seven formats, import covers six, and four formats (`docx`, `rtf`, `epub`, `md`) round-trip between Roam and your desktop without data loss you care about.*
-<br><br>
 ## Quickstart
 
 1. Install from Roam Depot.
