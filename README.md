@@ -141,7 +141,7 @@ const result = await window.RoamExtensionTools["export-document"].tools
 | `page_uid` | string | yes | UID of the Roam page to export |
 | `format` | string | yes | One of `docx`, `epub`, `gfm`, `md`, `opendocument`, `pdf`, `rtf` |
 
-Settings (flatten, exclude tag, linked references) are read from Roam Depot configuration. The tool does not accept overrides — if a calling extension needs different behaviour, ask the user to change settings first.
+Settings (flatten, exclude tag, linked references) are read from Roam Depot configuration. The tool does not accept overrides — if a calling extension needs different behaviour, ask the user to change settings first.<br><br>
 
 ### `ed_import` (mutating)
 
@@ -167,7 +167,7 @@ await window.RoamExtensionTools["export-document"].tools
 | `target_page_title` | string | no | Override the page title derived from the document |
 | `parent_page_uid` | string | no | Append imported content as children of this existing page or block instead of creating a new top-level page |
 
-Returns `{ success: true, pageTitle, pageUid, blocksCreated, filename }` on success, or `{ error: "..." }` on failure.
+Returns `{ success: true, pageTitle, pageUid, blocksCreated, filename }` on success, or `{ error: "..." }` on failure.<br><br>
 
 ### `consentGiven` (boolean)
 
