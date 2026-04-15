@@ -16,7 +16,13 @@ const config = {
         {
             id: "export-hideAlert",
             name: "Hide Security Alert",
-            description: "Turn on to hide the data-sharing alert shown when exporting or importing documents.",
+            description: "Turn on to hide the data-sharing alert shown when exporting or importing documents interactively.",
+            action: { type: "switch" },
+        },
+        {
+            id: "export-consent-given",
+            name: "Allow programmatic imports",
+            description: "Allow other extensions (e.g. Chief of Staff) to trigger imports via the Extension Tools API. Enabling this confirms that imported file contents will be sent to a third-party server for conversion. Auto-enabled the first time you accept the security alert in an interactive import.",
             action: { type: "switch" },
         },
         {
@@ -157,7 +163,9 @@ function onload({ extensionAPI }) {
     window.RoamExtensionTools["export-document"] = {
         name: "Export Document",
         version: "1.1",
-        consentGiven: extensionAPI.settings.get("export-hideAlert") === true,
+        consentGiven:
+            extensionAPI.settings.get("export-consent-given") === true ||
+            extensionAPI.settings.get("export-hideAlert") === true,
         tools: [
             {
                 name: "ed_export",
@@ -695,14 +703,40 @@ const IMPORT_ACCEPT_ATTR = '.docx,.odt,.rtf,.epub,.html,.htm,.md';
 
 async function importFile({ extensionAPI }, { targetPageTitle, parentPageUid, silent = false } = {}) {
     const hideAlert = extensionAPI.settings.get("export-hideAlert") === true;
+    // Programmatic-import consent. Grandfather users who already enabled
+    // "Hide Security Alert" — they've seen the disclosure at least once.
+    const consentGiven =
+        extensionAPI.settings.get("export-consent-given") === true || hideAlert;
 
-    if (!silent && !hideAlert) {
+    if (silent) {
+        // Tool-driven imports must have explicit user consent because the
+        // file picker isn't preceded by an interactive disclosure dialog.
+        if (!consentGiven) {
+            return {
+                error:
+                    "Document import via the Tools API requires consent. " +
+                    "Open Export & Import Documents settings and enable " +
+                    "'Allow programmatic imports', or run an interactive " +
+                    "import once and accept the security alert.",
+            };
+        }
+    } else if (!hideAlert) {
         const ok = confirm(
             "This extension sends the selected file to an external server to convert it for Roam.\n\n" +
             "Press OK to continue and choose a file.\n\n" +
             "(You can turn off this alert in Roam Depot Settings.)"
         );
         if (!ok) return { error: "User cancelled." };
+        // Accepting the alert grants programmatic-import consent so that
+        // tool-driven calls (e.g. from Chief of Staff) work without forcing
+        // the user to flip a separate setting.
+        if (extensionAPI.settings.get("export-consent-given") !== true) {
+            try {
+                extensionAPI.settings.set("export-consent-given", true);
+            } catch (e) {
+                console.warn("export-document: could not persist import consent", e);
+            }
+        }
     }
 
     let file;
