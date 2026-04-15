@@ -1,148 +1,195 @@
-This extension lets you **export** Roam pages into many document formats and **import** documents from your computer into Roam as new pages.
+# export-document
+
+![Linotype operators at the Chicago Defender, 1941](docs/assets/posters/hero-linotype-1941.jpg)
+*Linotype operators at the Chicago Defender, April 1941. Photograph by Russell Lee for the US Farm Security Administration. Library of Congress, public domain.*
+
+Move text between Roam and real document formats in both directions. Export any page to `pdf`, `docx`, `epub`, `rtf`, `md`, `gfm`, or `opendocument`. Import `docx`, `odt`, `rtf`, `epub`, `html`, or `md` files from disk and land them in your graph as nested blocks with their heading structure intact.
+
+![Supported formats](docs/assets/svg/format-matrix.svg)
+*What this shows: export covers seven formats, import covers six, and four formats (`docx`, `rtf`, `epub`, `md`) round-trip between Roam and your desktop without data loss you care about.*
+
+## Quickstart
+
+1. Install from Roam Depot.
+2. Open a page you want to export. Right-click the page title and pick **Export page as…**, or run **Export Document: [format]** from the Command Palette.
+3. To import, run **Import Document into Graph…** from the Command Palette. Pick a file. A new page appears with the source document's structure mirrored as nested blocks.
+
+The first export or import shows a one-time security dialog explaining that file content is sent to a conversion server. Dismiss it, or disable it permanently in settings.
+
+## How it works
+
+![Export and import flow diagram](docs/assets/svg/flow-diagram.svg)
+*What this shows: both directions route through a Heroku-hosted Pandoc and TinyTeX server. Export serialises the Roam page to GFM markdown before sending. Import sends raw file bytes and receives normalised markdown, which the extension parses into a nested block tree.*
+
+The server does the heavy lifting in both directions. The extension itself is responsible for walking Roam's block tree, serialising or parsing structure, and applying the result cleanly back to the graph.
 
 ## Export
 
 ### Features
 
-- Export from the **Command Palette** (all formats) or the **Page Context Menu** (right-click page title)
-- Visual indicator during export so you know something is happening
-- Up to 15 levels of nesting supported for PDFs (previously limited to 6)
-- Include Linked References in the export, with optional flattening
-- Augmented Headings support — H4–H6 headings are automatically exported when the [Augmented Headings](https://github.com/mlava/augmented-headings) extension is in use
+- Export triggers live in the **Command Palette** (every format) and the **Page Context Menu** (right-click the page title for a quick menu)
+- Visual indicator runs while the server works, so long exports do not feel frozen
+- Up to 15 levels of nesting preserved in PDFs (the old limit was 6)
+- Linked References can be appended to the export, flattened or not, independently of the main page
+- Augmented Headings integration: if the [Augmented Headings](https://github.com/mlava/augmented-headings) extension is installed, H4 through H6 headings are emitted as proper headings rather than falling back to plain text
 
 ### Supported export formats
 
-- pdf
-- docx
-- epub
-- rtf
-- md
-- gfm
-- opendocument
+| Format | Notes |
+|---|---|
+| `pdf` | Deepest nesting support; uses TinyTeX on the server |
+| `docx` | Round-trips cleanly with import |
+| `epub` | Round-trips cleanly with import |
+| `rtf` | Round-trips cleanly with import |
+| `md` | Plain CommonMark |
+| `gfm` | GitHub Flavored Markdown |
+| `opendocument` | ODT-compatible XML |
 
 ### Settings (export)
 
-Configure via Roam Depot Settings:
+All settings live under **Roam Depot > Settings > export-document**.
 
-- **Exclude blocks with tag** — any block containing this tag will be excluded from the export (leave blank to include all blocks)
-- **Flatten page hierarchy** — export all content justified to the left, with no indentation
-- **Include Linked References** — append the linked references section to the export
-- **Flatten Linked References** — flatten hierarchy only for the linked references section (independent of the main flatten setting)
+| Setting | What it does |
+|---|---|
+| **Exclude blocks with tag** | Blocks tagged with this string are dropped from the export. Leave blank to include everything. Example: set to `#private` to keep draft notes out of exported reports. |
+| **Flatten page hierarchy** | Left-justifies every block. No indentation. Useful when the destination format does not render nested lists well (for example, `rtf` opened in minimal word processors). |
+| **Include Linked References** | Appends the Linked References section to the end of the export. |
+| **Flatten Linked References** | Flattens hierarchy for the linked references section only. Independent of the main flatten setting, so you can keep structure in the main body and flatten references. |
 
 ## Import
 
 ### Features
 
-- Import from the **Command Palette** ("Import Document into Graph…") or the **Page Context Menu** ("Import Document as child of this page")
-- Picks any local file via a standard file dialog
-- Creates a new Roam page with structure preserved as nested blocks, or appends as children of an existing page
-- Native Roam heading styles (H1–H3) reproduced from source headings
-- H4–H6 reproduced via the [Augmented Headings](https://github.com/mlava/augmented-headings) extension when installed (silent fallback to plain text otherwise)
-- Pipe tables converted to native Roam `{{table}}` blocks with cell chains
-- Page-title collision detection — a duplicate name gets an `(Imported YYYY-MM-DD)` suffix instead of overwriting
+- Import triggers live in the **Command Palette** (`Import Document into Graph…`) and the **Page Context Menu** (`Import Document as child of this page`)
+- A native file dialog opens on invocation — pick any local file
+- The resulting page preserves the source document's structure as nested blocks
+- Roam's native heading styles (H1, H2, H3) are reproduced from source headings
+- H4 through H6 reproduce via the [Augmented Headings](https://github.com/mlava/augmented-headings) extension when installed. Without it, they fall back to plain text silently.
+- Pipe tables become native Roam `{{table}}` blocks with cell chains
+- Page-title collisions produce an `(Imported YYYY-MM-DD)` suffix. The extension never overwrites an existing page.
 
 ### Supported import formats
 
-- docx (Microsoft Word)
-- odt (OpenDocument Text)
-- rtf (Rich Text Format)
-- epub
-- html / htm
-- md (Markdown — pass-through normalisation)
+`docx`, `odt`, `rtf`, `epub`, `html`, `htm`, `md`.
 
-PDF, PPTX, and XLSX are not supported in this version. The server returns a clear error if you select one.
+PDF, PPTX, and XLSX are deliberately unsupported in this version. The server returns a clear error if you pick one — it does not silently mangle the content.
 
-### Behaviour
+### Source to Roam mapping
 
 | Source element | Becomes in Roam |
 |---|---|
-| H1 | Page title (or top-level Roam H1 if it doesn't match the page title) |
-| H2 / H3 | Nested blocks with native Roam H2 / H3 styles |
-| H4 / H5 / H6 | Plain blocks (or Augmented Headings styles if that extension is installed) |
-| Paragraph | Block under nearest heading |
-| Bulleted list | Nested children — if the preceding paragraph ends with `:`, the list nests under that paragraph as a natural intro/items pair |
-| Numbered list | Same as bulleted (Roam has no native ordered-list semantics) |
+| H1 | Page title (or a top-level Roam H1 block if the H1 text does not match the page title) |
+| H2, H3 | Nested blocks styled as native Roam H2 or H3 |
+| H4, H5, H6 | Plain blocks, or Augmented Headings styles when that extension is installed |
+| Paragraph | A block under the nearest heading |
+| Bulleted list | Nested children. If the preceding paragraph ends with `:`, the list nests under that paragraph as a natural intro-and-items pair. |
+| Numbered list | Same as bulleted — Roam has no native ordered-list semantics |
 | Nested list (indented) | Multi-level child nesting via indentation |
-| Blockquote | Single block per `>` run; multi-line quotes stay together |
-| Fenced code block | Single block preserving the fence and language |
+| Blockquote | One block per `>` run; multi-line quotes stay together |
+| Fenced code block | One block preserving the fence and language marker |
 | Table | Roam `{{table}}` block with row chains |
-| Inline `**bold**`, `*italic*`, `~~strike~~`, `` `code` `` | Preserved/converted to Roam syntax |
-| Footnotes | Stripped from inline text; collected into a trailing `## Footnotes` section as child blocks |
-| Images | Replaced with `[image: alt text]` placeholders (image content is not transferred) |
+| Inline `**bold**`, `*italic*`, `~~strike~~`, `` `code` `` | Preserved or converted to Roam's syntax |
+| Footnotes | Stripped from inline text and collected into a trailing `## Footnotes` section |
+| Images | Replaced with `[image: alt text]` placeholders. Image bytes are not transferred. |
 
 ### Limitations
 
-- Maximum file size: **10 MB**
-- No image transfer — only alt text is preserved
-- No undo / rollback — if an import goes wrong, delete the resulting page and try again
-- Italics in the source are converted to Roam's `__italic__` syntax
-- Bold paragraphs in Word documents that aren't styled as real headings won't become headings (use Word's Heading styles for proper hierarchy)
+- **File size cap:** 10 MB.
+- **No image transfer.** Only the alt text is preserved. If you need the images, drag them into Roam after the import.
+- **No rollback.** If an import produces the wrong structure, delete the new page and try again with different source formatting.
+- **Italics become Roam's `__italic__` syntax.** Source `*italic*` or `_italic_` converts automatically.
+- **Bold paragraphs in Word that are not true heading styles stay as bold paragraphs.** If you want them treated as headings on import, apply Word's Heading styles first.
 
 ## Augmented Headings integration
 
-If you have the [Augmented Headings](https://github.com/mlava/augmented-headings) extension installed alongside this one, both directions benefit:
+If you run the [Augmented Headings](https://github.com/mlava/augmented-headings) extension alongside this one, both directions get better:
 
-- **Export**: H4, H5, H6 in your graph are emitted as proper headings in the output document
-- **Import**: H4, H5, H6 in source documents are applied to imported blocks via the Augmented Headings tool
+- **Export:** H4, H5, H6 in your graph are written as real headings in the output document
+- **Import:** H4, H5, H6 in the source document are applied to the imported blocks through the Augmented Headings tool
 
-The integration is automatic and silent — there's nothing to configure. If Augmented Headings isn't installed, H4–H6 simply fall back to plain text on import.
+There is nothing to configure. Install both extensions and the integration works automatically. Without Augmented Headings, H4 through H6 silently fall back to plain text on import and plain block text on export.
 
 ## Shared settings
 
-- **Hide Security Alert** — suppress the data-sharing confirmation dialog shown before exports and imports
+| Setting | What it does |
+|---|---|
+| **Hide Security Alert** | Suppresses the data-sharing confirmation dialog shown before the first export and first import. |
 
 ## Extension Tools API
 
-Other extensions can drive both directions programmatically via `window.RoamExtensionTools["export-document"]`.
+Other extensions can drive both directions programmatically via `window.RoamExtensionTools["export-document"]`. The registry pattern follows the shared Extension Tools convention — a global namespace where each installed extension registers its own `tools` array and a few extra metadata fields.
 
 ### `ed_export` (read-only)
 
-Exports a Roam page to a document file, downloaded to the user's browser.
+Export a Roam page to a document file. The file downloads to the user's browser.
 
 ```js
-await window.RoamExtensionTools["export-document"].tools
+const result = await window.RoamExtensionTools["export-document"].tools
   .find(t => t.name === "ed_export")
-  .execute({ page_uid: "abc123", format: "docx" });
+  .execute({ page_uid: "abc123XYZ", format: "docx" });
+
+// { success: true, filename: "My Page.docx" }
+// or { error: "Invalid format. Must be one of: docx, epub, gfm, md, opendocument, pdf, rtf" }
 ```
 
-Parameters:
-- `page_uid` (string, required) — UID of the Roam page to export
-- `format` (string, required) — one of `docx`, `epub`, `gfm`, `md`, `opendocument`, `pdf`, `rtf`
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `page_uid` | string | yes | UID of the Roam page to export |
+| `format` | string | yes | One of `docx`, `epub`, `gfm`, `md`, `opendocument`, `pdf`, `rtf` |
 
-Returns `{ success: true, filename }` or `{ error: "..." }`.
-
-Settings (flatten, exclude tag, linked refs) are read from Roam Depot configuration.
+Settings (flatten, exclude tag, linked references) are read from Roam Depot configuration. The tool does not accept overrides — if a calling extension needs different behaviour, ask the user to change settings first.
 
 ### `ed_import` (mutating)
 
-Imports a local document into the graph as a new page, or appends to an existing page. Opens a native file picker on invocation — cannot run fully headlessly.
+Import a local document file into the graph. Opens a native file picker on invocation, so this tool cannot run fully headlessly. Use it to prompt the user for a file and then create pages programmatically.
 
 ```js
+// Create a new top-level page from the picked file
 await window.RoamExtensionTools["export-document"].tools
   .find(t => t.name === "ed_import")
   .execute({});
+
+// Append the picked file as children of an existing page
+await window.RoamExtensionTools["export-document"].tools
+  .find(t => t.name === "ed_import")
+  .execute({
+    parent_page_uid: "someExistingPageUid",
+    target_page_title: "Q3 Planning (appended)"
+  });
 ```
 
-Parameters (all optional):
-- `target_page_title` (string) — override the page title derived from the document
-- `parent_page_uid` (string) — append the imported content as children of this existing page/block instead of creating a new top-level page
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `target_page_title` | string | no | Override the page title derived from the document |
+| `parent_page_uid` | string | no | Append imported content as children of this existing page or block instead of creating a new top-level page |
 
-Returns `{ success: true, pageTitle, pageUid, blocksCreated, filename }` or `{ error: "..." }`.
+Returns `{ success: true, pageTitle, pageUid, blocksCreated, filename }` on success, or `{ error: "..." }` on failure.
 
 ### `consentGiven` (boolean)
 
-`window.RoamExtensionTools["export-document"].consentGiven` exposes whether the user has dismissed the security alert at least once. Other extensions can read this to skip a redundant consent prompt.
+```js
+if (!window.RoamExtensionTools["export-document"].consentGiven) {
+  // User has not yet acknowledged the data-sharing notice.
+  // Show your own prompt or trigger ed_export and let the extension handle it.
+}
+```
+
+`consentGiven` reflects whether the user has dismissed the security alert at least once. Other extensions can read it to avoid a redundant consent prompt.
 
 ## Privacy and data handling
 
-Both export and import send file content to a Heroku-hosted Pandoc/LaTeX server for conversion. The server is operated by the extension author and is not shared with third parties beyond Heroku's hosting infrastructure. A confirmation dialog is shown the first time you use either feature; you can disable it via the **Hide Security Alert** setting.
+Export and import both send file content to a Heroku-hosted Pandoc and TinyTeX server for conversion. The server is operated by the extension author, not shared with any third party beyond Heroku's hosting infrastructure, and retains no copies of the content it processes.
+
+A confirmation dialog appears the first time you use either feature. You can suppress it permanently via the **Hide Security Alert** setting. Do not send documents you are not comfortable routing through a third-party server.
 
 ## Credits
 
-This extension uses open source code originally written by [@TFTHacker](https://twitter.com/TfTHacker) and maintained by [David Vargas](https://github.com/dvargas92495) with their permission and blessing.
+This extension builds on open source code originally written by [@TFTHacker](https://twitter.com/TfTHacker) and maintained by [David Vargas](https://github.com/dvargas92495), with their permission and blessing.
 
 The conversion server runs [Pandoc](https://pandoc.org/) and [TinyTeX](https://yihui.org/tinytex/) on Heroku.
 
-## Notes
+## Troubleshooting
 
-For long pages or large documents, the conversion may take a few seconds — a visual indicator is shown while it runs. If something fails, an alert will tell you what went wrong. For unexpected issues, check your browser console for errors and report them on the GitHub repository.
+Long pages or large documents may take a few seconds to convert. The visual indicator stays up until the server responds. If something fails, an alert explains what went wrong.
+
+For unexpected issues, open your browser console, copy any errors, and report them on the [GitHub repository](https://github.com/mlava/export-document/issues).
