@@ -38,9 +38,9 @@ The server does the heavy lifting in both directions. The extension itself is re
 | Format | Notes |
 |---|---|
 | `pdf` | Deepest nesting support; uses TinyTeX on the server |
-| `docx` | Round-trips cleanly with import |
-| `epub` | Round-trips cleanly with import |
-| `rtf` | Round-trips cleanly with import |
+| `docx` | Microsoft Word document |
+| `epub` | e-book file format |
+| `rtf` | Rich Text Format |
 | `md` | Plain CommonMark |
 | `gfm` | GitHub Flavored Markdown |
 | `opendocument` | ODT-compatible XML |
@@ -63,10 +63,10 @@ All settings live under **Roam Depot > Settings > export-document**.
 ### Features
 
 - Import triggers live in the **Command Palette** (`Import Document into Graph…`) and the **Page Context Menu** (`Import Document as child of this page`)
-- A native file dialog opens on invocation — pick any local file
+- A native file dialogue opens on invocation — pick any local file
 - The resulting page preserves the source document's structure as nested blocks
 - Roam's native heading styles (H1, H2, H3) are reproduced from source headings
-- H4 through H6 reproduce via the [Augmented Headings](https://github.com/mlava/augmented-headings) extension when installed. Without it, they fall back to plain text silently.
+- H4 through H6 reproduce via the [Augmented Headings](https://github.com/mlava/augmented-headings) extension when installed. Without it, they silently fall back to plain text.
 - Pipe tables become native Roam `{{table}}` blocks with cell chains
 - Page-title collisions produce an `(Imported YYYY-MM-DD)` suffix. The extension never overwrites an existing page.
 
