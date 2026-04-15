@@ -1,12 +1,8 @@
 # Export or Import Document
 
-<p align="center">
-  <img src="docs/assets/posters/hero-linotype-1941.jpg" alt="Linotype operators at the Chicago Defender, 1941" width="500">
-</p>
-
-*Linotype operators at the Chicago Defender, April 1941. Photograph by Russell Lee for the US Farm Security Administration. Library of Congress, public domain.*
-<br><br><br>
-Move text between Roam and real document formats in both directions. Export any page to `pdf`, `docx`, `epub`, `rtf`, `md`, `gfm`, or `opendocument`. Import `docx`, `odt`, `rtf`, `epub`, `html`, or `md` files from disk and land them in your graph as nested blocks with their heading structure intact.<br><br>
+Move text between Roam and real document formats in both directions. 
+  - Export any page to `pdf`, `docx`, `epub`, `rtf`, `md`, `gfm`, or `opendocument`. 
+  - Import `docx`, `odt`, `rtf`, `epub`, `html`, or `md` files from disk and land them in your graph as nested blocks with their heading structure intact.<br><br>
 
 ![Supported formats](docs/assets/svg/format-matrix.svg)
 <br>
