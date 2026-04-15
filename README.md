@@ -1,27 +1,31 @@
 # export-document
 
-![Linotype operators at the Chicago Defender, 1941](docs/assets/posters/hero-linotype-1941.jpg)
-*Linotype operators at the Chicago Defender, April 1941. Photograph by Russell Lee for the US Farm Security Administration. Library of Congress, public domain.*
+<p align="center">
+  <img src="docs/assets/posters/hero-linotype-1941.jpg" alt="Linotype operators at the Chicago Defender, 1941" width="500">
+</p>
 
-Move text between Roam and real document formats in both directions. Export any page to `pdf`, `docx`, `epub`, `rtf`, `md`, `gfm`, or `opendocument`. Import `docx`, `odt`, `rtf`, `epub`, `html`, or `md` files from disk and land them in your graph as nested blocks with their heading structure intact.
+*Linotype operators at the Chicago Defender, April 1941. Photograph by Russell Lee for the US Farm Security Administration. Library of Congress, public domain.*
+<br><br><br>
+Move text between Roam and real document formats in both directions. Export any page to `pdf`, `docx`, `epub`, `rtf`, `md`, `gfm`, or `opendocument`. Import `docx`, `odt`, `rtf`, `epub`, `html`, or `md` files from disk and land them in your graph as nested blocks with their heading structure intact.<br><br>
 
 ![Supported formats](docs/assets/svg/format-matrix.svg)
+<br>
 *What this shows: export covers seven formats, import covers six, and four formats (`docx`, `rtf`, `epub`, `md`) round-trip between Roam and your desktop without data loss you care about.*
-
+<br><br>
 ## Quickstart
 
 1. Install from Roam Depot.
 2. Open a page you want to export. Right-click the page title and pick **Export page as…**, or run **Export Document: [format]** from the Command Palette.
 3. To import, run **Import Document into Graph…** from the Command Palette. Pick a file. A new page appears with the source document's structure mirrored as nested blocks.
 
-The first export or import shows a one-time security dialog explaining that file content is sent to a conversion server. Dismiss it, or disable it permanently in settings.
+The first export or import shows a one-time security dialog explaining that file content is sent to a conversion server. Dismiss it, or disable it permanently in settings.<br><br>
 
 ## How it works
 
 ![Export and import flow diagram](docs/assets/svg/flow-diagram.svg)
 *What this shows: both directions route through a Heroku-hosted Pandoc and TinyTeX server. Export serialises the Roam page to GFM markdown before sending. Import sends raw file bytes and receives normalised markdown, which the extension parses into a nested block tree.*
 
-The server does the heavy lifting in both directions. The extension itself is responsible for walking Roam's block tree, serialising or parsing structure, and applying the result cleanly back to the graph.
+The server does the heavy lifting in both directions. The extension itself is responsible for walking Roam's block tree, serialising or parsing structure, and applying the result cleanly back to the graph.<br><br>
 
 ## Export
 
@@ -55,6 +59,8 @@ All settings live under **Roam Depot > Settings > export-document**.
 | **Flatten page hierarchy** | Left-justifies every block. No indentation. Useful when the destination format does not render nested lists well (for example, `rtf` opened in minimal word processors). |
 | **Include Linked References** | Appends the Linked References section to the end of the export. |
 | **Flatten Linked References** | Flattens hierarchy for the linked references section only. Independent of the main flatten setting, so you can keep structure in the main body and flatten references. |
+
+<br>
 
 ## Import
 
@@ -98,7 +104,7 @@ PDF, PPTX, and XLSX are deliberately unsupported in this version. The server ret
 - **No image transfer.** Only the alt text is preserved. If you need the images, drag them into Roam after the import.
 - **No rollback.** If an import produces the wrong structure, delete the new page and try again with different source formatting.
 - **Italics become Roam's `__italic__` syntax.** Source `*italic*` or `_italic_` converts automatically.
-- **Bold paragraphs in Word that are not true heading styles stay as bold paragraphs.** If you want them treated as headings on import, apply Word's Heading styles first.
+- **Bold paragraphs in Word that are not true heading styles stay as bold paragraphs.** If you want them treated as headings on import, apply Word's Heading styles first.<br><br>
 
 ## Augmented Headings integration
 
@@ -107,13 +113,15 @@ If you run the [Augmented Headings](https://github.com/mlava/augmented-headings)
 - **Export:** H4, H5, H6 in your graph are written as real headings in the output document
 - **Import:** H4, H5, H6 in the source document are applied to the imported blocks through the Augmented Headings tool
 
-There is nothing to configure. Install both extensions and the integration works automatically. Without Augmented Headings, H4 through H6 silently fall back to plain text on import and plain block text on export.
+There is nothing to configure. Install both extensions and the integration works automatically. Without Augmented Headings, H4 through H6 silently fall back to plain text on import and plain block text on export.<br><br>
 
 ## Shared settings
 
 | Setting | What it does |
 |---|---|
 | **Hide Security Alert** | Suppresses the data-sharing confirmation dialog shown before the first export and first import. |
+
+<br>
 
 ## Extension Tools API
 
@@ -174,19 +182,19 @@ if (!window.RoamExtensionTools["export-document"].consentGiven) {
 }
 ```
 
-`consentGiven` reflects whether the user has dismissed the security alert at least once. Other extensions can read it to avoid a redundant consent prompt.
+`consentGiven` reflects whether the user has dismissed the security alert at least once. Other extensions can read it to avoid a redundant consent prompt.<br><br>
 
 ## Privacy and data handling
 
 Export and import both send file content to a Heroku-hosted Pandoc and TinyTeX server for conversion. The server is operated by the extension author, not shared with any third party beyond Heroku's hosting infrastructure, and retains no copies of the content it processes.
 
-A confirmation dialog appears the first time you use either feature. You can suppress it permanently via the **Hide Security Alert** setting. Do not send documents you are not comfortable routing through a third-party server.
+A confirmation dialog appears the first time you use either feature. You can suppress it permanently via the **Hide Security Alert** setting. Do not send documents you are not comfortable routing through a third-party server.<br><br>
 
 ## Credits
 
 This extension builds on open source code originally written by [@TFTHacker](https://twitter.com/TfTHacker) and maintained by [David Vargas](https://github.com/dvargas92495), with their permission and blessing.
 
-The conversion server runs [Pandoc](https://pandoc.org/) and [TinyTeX](https://yihui.org/tinytex/) on Heroku.
+The conversion server runs [Pandoc](https://pandoc.org/) and [TinyTeX](https://yihui.org/tinytex/) on Heroku.<br><br>
 
 ## Troubleshooting
 
