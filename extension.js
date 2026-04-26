@@ -1,89 +1,102 @@
-const config = {
-    tabTitle: "Export & Import Documents",
-    settings: [
-        {
-            id: "export-excludeTag",
-            name: "Exclude blocks with tag",
-            description: "If this Roam Research tag is anywhere in the block the block will not be included in the export",
-            action: { type: "input", placeholder: "tag" },
-        },
-        {
-            id: "export-flatten",
-            name: "Flatten page hierarchy",
-            description: "Remove indentation and justify all blocks to the left",
-            action: { type: "switch" },
-        },
-        {
-            id: "export-currentView",
-            name: "Export current view",
-            description: "When on, command-palette exports use the block currently open in the main window (after clicking a bullet to zoom in) and its children, instead of resolving up to the parent page. If the main window shows a full page, this setting has no effect. Page-context-menu exports always export the whole page.",
-            action: { type: "switch" },
-        },
-        {
-            id: "export-hideAlert",
-            name: "Hide Security Alert",
-            description: "Turn on to hide the data-sharing alert shown when exporting or importing documents interactively.",
-            action: { type: "switch" },
-        },
-        {
-            id: "export-consent-given",
-            name: "Allow programmatic imports",
-            description: "Allow other extensions (e.g. Chief of Staff) to trigger imports via the Extension Tools API. Enabling this confirms that imported file contents will be sent to a third-party server for conversion. Auto-enabled the first time you accept the security alert in an interactive import.",
-            action: { type: "switch" },
-        },
-        {
-            id: "export-linkedrefs",
-            name: "Include Linked References",
-            description: "Turn on to include Linked References in export",
-            action: { type: "switch" },
-        },
-        {
-            id: "export-linkedrefs-flatten",
-            name: "Flatten Linked References",
-            description: "Flatten hierarchy only for linked references",
-            action: { type: "switch" },
-        },
-    ]
-};
 const FILENAME_FALLBACK = 'roam-export';
 
+const EXPORT_FORMATS = [
+    { format: "docx", suffix: "DOCX (.docx)" },
+    { format: "epub", suffix: "ePub (.epub)" },
+    { format: "gfm", suffix: "Github Flavored Markdown (.gfm)" },
+    { format: "md", suffix: "Markdown (.md)" },
+    { format: "opendocument", suffix: "Open Document Format (.opendocument)" },
+    { format: "pdf", suffix: "PDF (.pdf)" },
+    { format: "rtf", suffix: "Rich Text Format (.rtf)" },
+];
+
+let registeredExportLabels = [];
+
+function exportCommandSubject(extensionAPI) {
+    return extensionAPI.settings.get("export-currentView") === true ? "View" : "Page";
+}
+
+function registerExportCommands(extensionAPI) {
+    unregisterExportCommands(extensionAPI);
+    const subject = exportCommandSubject(extensionAPI);
+    for (const { format, suffix } of EXPORT_FORMATS) {
+        const label = `Export ${subject} as ${suffix}`;
+        extensionAPI.ui.commandPalette.addCommand({
+            label,
+            callback: () => exportFile({ extensionAPI }, format),
+        });
+        registeredExportLabels.push(label);
+    }
+}
+
+function unregisterExportCommands(extensionAPI) {
+    for (const label of registeredExportLabels) {
+        try { extensionAPI.ui.commandPalette.removeCommand({ label }); } catch (_) { /* noop */ }
+    }
+    registeredExportLabels = [];
+}
+
+function buildSettingsConfig(extensionAPI) {
+    return {
+        tabTitle: "Export & Import Documents",
+        settings: [
+            {
+                id: "export-excludeTag",
+                name: "Exclude blocks with tag",
+                description: "If this Roam Research tag is anywhere in the block the block will not be included in the export",
+                action: { type: "input", placeholder: "tag" },
+            },
+            {
+                id: "export-flatten",
+                name: "Flatten page hierarchy",
+                description: "Remove indentation and justify all blocks to the left",
+                action: { type: "switch" },
+            },
+            {
+                id: "export-currentView",
+                name: "Export current view",
+                description: "When on, command-palette exports use the block currently open in the main window (after clicking a bullet to zoom in) and its children, instead of resolving up to the parent page. The command labels switch from \"Export Page as…\" to \"Export View as…\". If the main window shows a full page, this setting has no effect. Page-context-menu exports always export the whole page.",
+                action: {
+                    type: "switch",
+                    onChange: () => {
+                        // Roam persists the new value before/around onChange; defer one
+                        // tick so registerExportCommands reads the post-toggle value.
+                        setTimeout(() => registerExportCommands(extensionAPI), 0);
+                    },
+                },
+            },
+            {
+                id: "export-hideAlert",
+                name: "Hide Security Alert",
+                description: "Turn on to hide the data-sharing alert shown when exporting or importing documents interactively.",
+                action: { type: "switch" },
+            },
+            {
+                id: "export-consent-given",
+                name: "Allow programmatic imports",
+                description: "Allow other extensions (e.g. Chief of Staff) to trigger imports via the Extension Tools API. Enabling this confirms that imported file contents will be sent to a third-party server for conversion. Auto-enabled the first time you accept the security alert in an interactive import.",
+                action: { type: "switch" },
+            },
+            {
+                id: "export-linkedrefs",
+                name: "Include Linked References",
+                description: "Turn on to include Linked References in export",
+                action: { type: "switch" },
+            },
+            {
+                id: "export-linkedrefs-flatten",
+                name: "Flatten Linked References",
+                description: "Flatten hierarchy only for linked references",
+                action: { type: "switch" },
+            },
+        ],
+    };
+}
+
 function onload({ extensionAPI }) {
-    extensionAPI.settings.panel.create(config);
+    extensionAPI.settings.panel.create(buildSettingsConfig(extensionAPI));
 
-    extensionAPI.ui.commandPalette.addCommand({
-        label: "Export Page as DOCX (.docx)",
-        callback: () => exportFile({ extensionAPI }, "docx")
-    });
-
-    extensionAPI.ui.commandPalette.addCommand({
-        label: "Export Page as ePub (.epub)",
-        callback: () => exportFile({ extensionAPI }, "epub")
-    });
-
-    extensionAPI.ui.commandPalette.addCommand({
-        label: "Export Page as Github Flavored Markdown (.gfm)",
-        callback: () => exportFile({ extensionAPI }, "gfm")
-    });
-
-    extensionAPI.ui.commandPalette.addCommand({
-        label: "Export Page as Markdown (.md)",
-        callback: () => exportFile({ extensionAPI }, "md")
-    });
-
-    extensionAPI.ui.commandPalette.addCommand({
-        label: "Export Page as Open Document Format (.opendocument)",
-        callback: () => exportFile({ extensionAPI }, "opendocument")
-    });
-
-    extensionAPI.ui.commandPalette.addCommand({
-        label: "Export Page as PDF (.pdf)",
-        callback: () => exportFile({ extensionAPI }, "pdf")
-    });
-
-    extensionAPI.ui.commandPalette.addCommand({
-        label: "Export Page as Rich Text Format (.rtf)",
-        callback: () => exportFile({ extensionAPI }, "rtf")
-    });
+    registerExportCommands(extensionAPI);
 
     extensionAPI.ui.commandPalette.addCommand({
         label: "Import Document into Graph…",
@@ -316,7 +329,28 @@ async function exportFile({ extensionAPI }, format, explicitPageUid, { silent = 
                 var pageBlock = await window.roamAlphaAPI.ui.mainWindow.getOpenPageOrBlockUid();
                 if (pageBlock != null) {
                     var pageBlockInfo = await getBlockInfoByUID(pageBlock, true);
-                    startBlock = pageBlockInfo[0][0].children[0].uid;
+                    const pageBlockNode = pageBlockInfo?.[0]?.[0];
+                    if (!pageBlockNode) {
+                        const msg = "Could not read the current view.";
+                        if (silent) return { error: msg };
+                        return alert(msg);
+                    }
+                    if (pageBlockNode.title) {
+                        // Main window has a full page open. The ancestor rule
+                        // requires a block input, so step down to the first
+                        // top-level block and let it walk back up to the page.
+                        if (!pageBlockNode.children?.length) {
+                            const msg = "The current page has no blocks to export.";
+                            if (silent) return { error: msg };
+                            return alert(msg);
+                        }
+                        startBlock = pageBlockNode.children[0].uid;
+                    } else {
+                        // Main window is zoomed into a block. Feed the block
+                        // itself into the ancestor query — it walks up to the
+                        // containing page even when the block has no children.
+                        startBlock = pageBlock;
+                    }
                 } else {
                     var uri = window.location.href;
                     const regex = /^https:\/\/roamresearch.com\/.+\/(app|offline)\/\w+$/; //today's DNP
@@ -327,10 +361,22 @@ async function exportFile({ extensionAPI }, format, explicitPageUid, { silent = 
                         var yyyy = today.getFullYear();
                         pageBlock = "" + mm + "-" + dd + "-" + yyyy + "";
                         var pageBlockInfo = await getBlockInfoByUID(pageBlock, true);
-                        startBlock = pageBlockInfo[0][0].children[0].uid;
+                        const todayPageNode = pageBlockInfo?.[0]?.[0];
+                        if (!todayPageNode || !todayPageNode.children?.length) {
+                            const msg = "Today's Daily Note is empty — nothing to export.";
+                            if (silent) return { error: msg };
+                            return alert(msg);
+                        }
+                        startBlock = todayPageNode.children[0].uid;
                     }
                 }
             }
+        }
+
+        if (typeof startBlock === 'undefined') {
+            const msg = "Could not determine what to export. Open a page or focus a block, then try again.";
+            if (silent) return { error: msg };
+            return alert(msg);
         }
 
         var blockUIDList = ['' + startBlock + ''];
