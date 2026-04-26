@@ -14,6 +14,12 @@ const config = {
             action: { type: "switch" },
         },
         {
+            id: "export-currentView",
+            name: "Export current view",
+            description: "When on, command-palette exports use the block currently open in the main window (after clicking a bullet to zoom in) and its children, instead of resolving up to the parent page. If the main window shows a full page, this setting has no effect. Page-context-menu exports always export the whole page.",
+            action: { type: "switch" },
+        },
+        {
             id: "export-hideAlert",
             name: "Hide Security Alert",
             description: "Turn on to hide the data-sharing alert shown when exporting or importing documents interactively.",
@@ -244,6 +250,7 @@ async function exportFile({ extensionAPI }, format, explicitPageUid, { silent = 
     var flattenH = false;
     var flattenLinkedRefs = false;
     var hideAlert = false;
+    var currentView = false;
     if (extensionAPI.settings.get("export-linkedrefs") == true) {
         includeLinkedRefs = true;
     }
@@ -259,60 +266,94 @@ async function exportFile({ extensionAPI }, format, explicitPageUid, { silent = 
     if (extensionAPI.settings.get("export-hideAlert")) {
         hideAlert = true;
     }
+    if (extensionAPI.settings.get("export-currentView") == true) {
+        currentView = true;
+    }
 
-    var startBlock;
-    if (explicitPageUid) {
-        console.info("Exporting explicit page UID:", explicitPageUid);
-        const pageInfo = await getBlockInfoByUID(explicitPageUid, true);
-        const pageNode = pageInfo?.[0]?.[0];
-        if (!pageNode || !pageNode.children?.length) {
-            if (silent) return { error: "Page has no blocks to export." };
-            return alert("Page has no blocks to export.");
+    var pageTitle;
+    var page;
+
+    if (!explicitPageUid && currentView) {
+        const openUid = await window.roamAlphaAPI.ui.mainWindow.getOpenPageOrBlockUid();
+        if (!openUid) {
+            const msg = "Could not determine the current view. Open a page or block in the main window and try again.";
+            if (silent) return { error: msg };
+            return alert(msg);
         }
-        startBlock = pageNode.children[0].uid;
+        const openInfo = await getBlockInfoByUID(openUid, false);
+        const openNode = openInfo?.[0]?.[0];
+        if (openNode?.title) {
+            // Main window is showing a full page — export it normally.
+            pageTitle = openNode.title;
+            page = await flatten(openUid, excludeTag, flattenH);
+            if (includeLinkedRefs) {
+                const linkedRefs = await buildLinkedReferencesSection(openUid, excludeTag, flattenLinkedRefs);
+                if (linkedRefs) page = `${page}\n\n## Linked References\n${linkedRefs}`;
+            }
+        } else if (openNode && typeof openNode.string !== 'undefined') {
+            // Main window is zoomed into a block — export the block as a document.
+            pageTitle = (openNode.string || '').slice(0, 80) || FILENAME_FALLBACK;
+            page = await flattenBlockAsView(openUid, excludeTag, flattenH);
+        } else {
+            const msg = "Could not read the current view.";
+            if (silent) return { error: msg };
+            return alert(msg);
+        }
     } else {
-        startBlock = await window.roamAlphaAPI.ui.getFocusedBlock()?.["block-uid"];
-        if (typeof startBlock == 'undefined') { // no focused block
-            var pageBlock = await window.roamAlphaAPI.ui.mainWindow.getOpenPageOrBlockUid();
-            if (pageBlock != null) {
-                var pageBlockInfo = await getBlockInfoByUID(pageBlock, true);
-                startBlock = pageBlockInfo[0][0].children[0].uid;
-            } else {
-                var uri = window.location.href;
-                const regex = /^https:\/\/roamresearch.com\/.+\/(app|offline)\/\w+$/; //today's DNP
-                if (regex.test(uri)) { // this is Daily Notes for today
-                    var today = new Date();
-                    var dd = String(today.getDate()).padStart(2, '0');
-                    var mm = String(today.getMonth() + 1).padStart(2, '0');
-                    var yyyy = today.getFullYear();
-                    pageBlock = "" + mm + "-" + dd + "-" + yyyy + "";
+        var startBlock;
+        if (explicitPageUid) {
+            console.info("Exporting explicit page UID:", explicitPageUid);
+            const pageInfo = await getBlockInfoByUID(explicitPageUid, true);
+            const pageNode = pageInfo?.[0]?.[0];
+            if (!pageNode || !pageNode.children?.length) {
+                if (silent) return { error: "Page has no blocks to export." };
+                return alert("Page has no blocks to export.");
+            }
+            startBlock = pageNode.children[0].uid;
+        } else {
+            startBlock = await window.roamAlphaAPI.ui.getFocusedBlock()?.["block-uid"];
+            if (typeof startBlock == 'undefined') { // no focused block
+                var pageBlock = await window.roamAlphaAPI.ui.mainWindow.getOpenPageOrBlockUid();
+                if (pageBlock != null) {
                     var pageBlockInfo = await getBlockInfoByUID(pageBlock, true);
                     startBlock = pageBlockInfo[0][0].children[0].uid;
+                } else {
+                    var uri = window.location.href;
+                    const regex = /^https:\/\/roamresearch.com\/.+\/(app|offline)\/\w+$/; //today's DNP
+                    if (regex.test(uri)) { // this is Daily Notes for today
+                        var today = new Date();
+                        var dd = String(today.getDate()).padStart(2, '0');
+                        var mm = String(today.getMonth() + 1).padStart(2, '0');
+                        var yyyy = today.getFullYear();
+                        pageBlock = "" + mm + "-" + dd + "-" + yyyy + "";
+                        var pageBlockInfo = await getBlockInfoByUID(pageBlock, true);
+                        startBlock = pageBlockInfo[0][0].children[0].uid;
+                    }
                 }
             }
         }
-    }
 
-    var blockUIDList = ['' + startBlock + ''];
-    var rule = '[[(ancestor ?b ?a)[?a :block/children ?b]][(ancestor ?b ?a)[?parent :block/children ?b ](ancestor ?parent ?a) ]]';
-    var query = `[:find  (pull ?block [:block/uid :block/string])(pull ?page [:node/title :block/uid])
-                                 :in $ [?block_uid_list ...] %
-                                 :where
-                                  [?block :block/uid ?block_uid_list]
-                                 [?page :node/title]
-                                 (ancestor ?block ?page)]`;
-    var results = await window.roamAlphaAPI.q(query, blockUIDList, rule);
-    var pageTitle = results[0][1].title;
-    var pageUID = results[0][1].uid;
+        var blockUIDList = ['' + startBlock + ''];
+        var rule = '[[(ancestor ?b ?a)[?a :block/children ?b]][(ancestor ?b ?a)[?parent :block/children ?b ](ancestor ?parent ?a) ]]';
+        var query = `[:find  (pull ?block [:block/uid :block/string])(pull ?page [:node/title :block/uid])
+                                     :in $ [?block_uid_list ...] %
+                                     :where
+                                      [?block :block/uid ?block_uid_list]
+                                     [?page :node/title]
+                                     (ancestor ?block ?page)]`;
+        var results = await window.roamAlphaAPI.q(query, blockUIDList, rule);
+        pageTitle = results[0][1].title;
+        var pageUID = results[0][1].uid;
 
-    // render page content
-    var page = await flatten(pageUID, excludeTag, flattenH);
+        // render page content
+        page = await flatten(pageUID, excludeTag, flattenH);
 
-    // optionally append linked references grouped by page
-    if (includeLinkedRefs) {
-        const linkedRefs = await buildLinkedReferencesSection(pageUID, excludeTag, flattenLinkedRefs);
-        if (linkedRefs) {
-            page = `${page}\n\n## Linked References\n${linkedRefs}`;
+        // optionally append linked references grouped by page
+        if (includeLinkedRefs) {
+            const linkedRefs = await buildLinkedReferencesSection(pageUID, excludeTag, flattenLinkedRefs);
+            if (linkedRefs) {
+                page = `${page}\n\n## Linked References\n${linkedRefs}`;
+            }
         }
     }
 
@@ -417,6 +458,37 @@ async function flatten(uid, excludeTag, flattenH, baseLevel = 0) {
     //lATEX handling
     md = md.replace(/  \- (\$\$)/g, '\n\n$1'); //Latex is centered
     return (md);
+}
+
+// Render a block (with its string promoted to an H1) followed by its children,
+// matching the indentation that a page export would produce if this block were
+// the page's only top-level block. Used when the user has zoomed into a block
+// in the main window and "Export current view" is enabled.
+async function flattenBlockAsView(uid, excludeTag, flattenH) {
+    const info = await getBlockInfoByUID(uid, true);
+    const block = info?.[0]?.[0];
+    if (!block) return '';
+
+    const acc = { text: '# ' + (block.string || '') };
+
+    if (block.children && block.children.length) {
+        const ordered = await sortObjectsByOrder(block.children);
+        for (const child of ordered) {
+            await walkDocumentStructureAndFormat(child, 1, markdownGithub, block, flattenH, excludeTag, acc);
+        }
+    }
+
+    let md = acc.text;
+    md = md.replaceAll('- [ ] [', '- [ ]&nbsp;&nbsp;[');
+    md = md.replaceAll('- [x] [', '- [x]&nbsp;[');
+    md = md.replaceAll(/\{\{\youtube\: (.+?)\}\} /g, (str, lnk) => {
+        lnk = lnk.replace('youtube.com/', 'youtube.com/embed/');
+        lnk = lnk.replace('youtu.be/', 'youtube.com/embed/');
+        lnk = lnk.replace('watch?v=', '');
+        return `<iframe width="560" height="315" class="embededYoutubeVieo" src="${lnk}" frameborder="0"></iframe>`;
+    });
+    md = md.replace(/  \- (\$\$)/g, '\n\n$1');
+    return md;
 }
 
 async function iterateThroughTree(uid, formatterFunction, flatten, excludeTag, baseLevel = 0, acc) {

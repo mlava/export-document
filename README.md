@@ -49,6 +49,7 @@ All settings live under **Roam Depot > Settings > export-document**.
 |---|---|
 | **Exclude blocks with tag** | Blocks tagged with this string are dropped from the export. Leave blank to include everything. Example: set to `#private` to keep draft notes out of exported reports. |
 | **Flatten page hierarchy** | Left-justifies every block. No indentation. Useful when the destination format does not render nested lists well (for example, `rtf` opened in minimal word processors). |
+| **Export current view** | When on, command-palette exports use the block currently open in the main window (after clicking a bullet to zoom in) and its children, instead of resolving up to the parent page. The block's text becomes the document's H1 title. If the main window shows a full page, this setting has no effect. Page-context-menu exports always export the whole page. |
 | **Include Linked References** | Appends the Linked References section to the end of the export. |
 | **Flatten Linked References** | Flattens hierarchy for the linked references section only. Independent of the main flatten setting, so you can keep structure in the main body and flatten references. |
 
