@@ -352,15 +352,14 @@ async function exportFile({ extensionAPI }, format, explicitPageUid, { silent = 
                         startBlock = pageBlock;
                     }
                 } else {
-                    var uri = window.location.href;
-                    const regex = /^https:\/\/roamresearch.com\/.+\/(app|offline)\/\w+$/; //today's DNP
-                    if (regex.test(uri)) { // this is Daily Notes for today
-                        var today = new Date();
-                        var dd = String(today.getDate()).padStart(2, '0');
-                        var mm = String(today.getMonth() + 1).padStart(2, '0');
-                        var yyyy = today.getFullYear();
-                        pageBlock = "" + mm + "-" + dd + "-" + yyyy + "";
-                        var pageBlockInfo = await getBlockInfoByUID(pageBlock, true);
+                    // getOpenPageOrBlockUid() returns null on the daily notes log view.
+                    // Read today's DNP UID from the topmost log page in the DOM —
+                    // avoids URL-shape regex and timezone-sensitive date construction.
+                    const logPageUid = document
+                        .querySelector(".roam-log-page .rm-title-display-container[data-page-uid]")
+                        ?.getAttribute("data-page-uid");
+                    if (logPageUid) {
+                        var pageBlockInfo = await getBlockInfoByUID(logPageUid, true);
                         const todayPageNode = pageBlockInfo?.[0]?.[0];
                         if (!todayPageNode || !todayPageNode.children?.length) {
                             const msg = "Today's Daily Note is empty — nothing to export.";
